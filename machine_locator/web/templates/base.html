@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Machine Locator{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='2' fill='%230f1216'/><path d='M3 3h10v10H3z' fill='none' stroke='%234da3ff' stroke-width='1.2'/><path d='M3 6.5h10M3 10h10M6.5 3v10M10 3v10' stroke='%234da3ff' stroke-width='.8'/></svg>">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">▦</span>
+      <div>
+        <strong>Machine Locator</strong>
+        <small>{{ city }}</small>
+      </div>
+    </div>
+    <nav>
+      <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' }}">Placement map</a>
+      <a href="{{ url_for('listings_page') }}" class="{{ 'active' if request.endpoint == 'listings_page' }}">Routes for sale</a>
+    </nav>
+    <div class="stats">
+      <span title="Scored placement prospects">{{ '{:,}'.format(stats.sites) }} sites</span>
+      <span title="Graded A or better">{{ '{:,}'.format(stats.sites_a_grade) }} A-grade</span>
+      <span title="Route listings tracked">{{ '{:,}'.format(stats.listings) }} listings</span>
+    </div>
+  </header>
+  {% block body %}{% endblock %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

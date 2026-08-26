@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "machine-locator"
+version = "0.1.0"
+description = "Find vending machine placement locations in Oklahoma City and track vending routes for sale."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.31",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+    "click>=8.1",
+    "PyYAML>=6.0",
+    "Flask>=3.0",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+mloc = "machine_locator.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["machine_locator*"]
+
+[tool.setuptools.package-data]
+machine_locator = ["routes/sources.yaml", "web/templates/*.html", "web/static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

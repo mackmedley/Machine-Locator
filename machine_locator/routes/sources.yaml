@@ -1,0 +1,130 @@
+# Where to look for vending routes and vending businesses on the market.
+#
+# Each source is either `rss` (a machine-readable feed -- cheap and stable) or
+# `html` (a scraped search page). HTML sources are selector-driven so you can
+# repair one in this file without touching Python.
+#
+# HOW TO FIX A SOURCE THAT STOPS RETURNING RESULTS
+#   1. `mloc routes diagnose --source <name>` -- it reports the HTTP status,
+#      whether robots.txt allowed the request, how many cards `item_selector`
+#      matched, and how many the heuristic fallback found.
+#   2. Open the search URL in a browser, right-click a result card, Inspect,
+#      and copy a CSS selector that matches every card.
+#   3. Paste it into `item_selector` here and re-run diagnose.
+#
+# `item_selector` may be left empty. The heuristic extractor then reads every
+# vending-looking link on the page instead. That is noisier but survives
+# redesigns, which is why it is the default for sources whose markup churns.
+#
+# Sources marked `verify: true` have URL patterns that should be confirmed in a
+# browser once before you trust a zero-result run.
+
+sources:
+  - name: craigslist_okc
+    type: rss
+    label: Craigslist -- Oklahoma City
+    enabled: true
+    default_location: Oklahoma City, OK
+    urls:
+      - "https://oklahomacity.craigslist.org/search/bfs?query=vending&format=rss"
+      - "https://oklahomacity.craigslist.org/search/bfs?query=vending+route&format=rss"
+      - "https://oklahomacity.craigslist.org/search/sss?query=vending+route&format=rss"
+    notes: >
+      Where small local routes actually change hands. Craigslist's robots.txt
+      disallows /search/, so this source is skipped unless you pass
+      --ignore-robots. Read that file and decide for yourself; the polite
+      alternative is a saved search with email alerts, then
+      `mloc routes import`.
+
+  - name: craigslist_tulsa
+    type: rss
+    label: Craigslist -- Tulsa
+    enabled: false
+    default_location: Tulsa, OK
+    urls:
+      - "https://tulsa.craigslist.org/search/bfs?query=vending&format=rss"
+    notes: >
+      Second Oklahoma market. Off by default -- a Tulsa route is a two hour
+      drive from an OKC warehouse. Enable it if you would relocate the machines.
+
+  - name: bizbuysell
+    type: html
+    label: BizBuySell
+    enabled: true
+    verify: true
+    pages: 2
+    urls:
+      - "https://www.bizbuysell.com/oklahoma/vending-machine-businesses-for-sale/"
+      - "https://www.bizbuysell.com/oklahoma-city-ok/vending-machine-businesses-for-sale/"
+    item_selector: ""
+    fields:
+      title: "h3, .listing-title, a[href*='/Business-Opportunity/'], a[href*='/business-opportunity/']"
+      url: { selector: "a", attr: href }
+      price: ".asking-price, .price"
+      cash_flow: ".cash-flow"
+      location: ".location, .listing-location"
+      description: ".description, p"
+    notes: >
+      The largest business-for-sale marketplace in the US. It fronts an
+      anti-bot layer, so expect a 403 -- that is not a bug in this tool. Their
+      free saved-search email alert is the reliable path; export it and use
+      `mloc routes import`.
+
+  - name: bizquest
+    type: html
+    label: BizQuest
+    enabled: true
+    verify: true
+    pages: 2
+    urls:
+      - "https://www.bizquest.com/oklahoma-vending-businesses-for-sale/"
+    item_selector: ""
+    fields:
+      title: "h3, .listing-title"
+      url: { selector: "a", attr: href }
+      price: ".price, .asking-price"
+      location: ".location"
+    notes: Sister site to BizBuySell with partly overlapping inventory.
+
+  - name: businessbroker
+    type: html
+    label: BusinessBroker.net
+    enabled: true
+    verify: true
+    urls:
+      - "https://www.businessbroker.net/businesses-for-sale/oklahoma/"
+      - "https://www.businessbroker.net/industry/vending-businesses-for-sale/"
+    item_selector: ""
+    notes: Broker-listed inventory; usually friendlier to automated access.
+
+  - name: businessesforsale
+    type: html
+    label: BusinessesForSale.com
+    enabled: true
+    verify: true
+    urls:
+      - "https://us.businessesforsale.com/us/search/vending-businesses-for-sale/oklahoma"
+    item_selector: ""
+    notes: International marketplace with a thin but real US vending section.
+
+  - name: usedvending
+    type: html
+    label: UsedVending.com
+    enabled: true
+    verify: true
+    urls:
+      - "https://www.usedvending.com/vending-routes-for-sale"
+    item_selector: ""
+    notes: >
+      A vending-specific marketplace -- routes here are pre-qualified as
+      vending, so relevance scores run high. Small inventory per state.
+
+  - name: vendingconnection
+    type: html
+    label: Vending Connection Classifieds
+    enabled: true
+    verify: true
+    urls:
+      - "https://www.vendingconnection.com/classifieds/vending-routes-for-sale/"
+    item_selector: ""
+    notes: Long-running industry classifieds board.

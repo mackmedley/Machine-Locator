@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Routes for sale -- Machine Locator{% endblock %}
+{% block body %}
+<div class="listings-page">
+  <div class="filters row">
+    <label><input type="checkbox" id="local-only" checked> OKC metro only</label>
+    <label>Minimum fit
+      <input type="range" id="min-relevance" min="0" max="100" value="40" step="5">
+      <output id="min-relevance-out">40</output>
+    </label>
+    <label>Max asking price
+      <input type="number" id="max-price" placeholder="any" step="5000" min="0">
+    </label>
+    <span class="hint" id="listing-count"></span>
+  </div>
+  <table class="listings">
+    <thead>
+      <tr>
+        <th>Fit</th><th>Listing</th><th>Asking</th><th>Cash flow</th>
+        <th>Machines</th><th>$/machine</th><th>Where</th><th>Source</th><th>First seen</th>
+      </tr>
+    </thead>
+    <tbody id="listing-rows"></tbody>
+  </table>
+  <p class="hint empty" id="listing-empty" hidden>
+    Nothing stored yet. Run <code>mloc routes find</code> in your terminal, then reload.
+  </p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='listings.js') }}"></script>
+{% endblock %}
