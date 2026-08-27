@@ -652,3 +652,66 @@ dl.kv dd { margin: 0; }
   font-size: 21px; font-weight: 660; color: var(--brand-ink);
   font-variant-numeric: tabular-nums; min-width: 34px; text-align: center;
 }
+
+/* --------------------------------------------------- narrow-screen fixes
+ * A flex or grid item defaults to min-width:auto, which means it refuses to
+ * shrink below its content. That is what pushed the sidebar nav, the data
+ * tables and the filter bars past the right edge on a phone: each had a
+ * scroll container, but the container itself could not get narrower than
+ * what was inside it.
+ *
+ * The fix is min-width:0 down the chain so the scroll containers can actually
+ * do their job -- not overflow-x:hidden on the body, which would hide the
+ * symptom and silently clip content.
+ */
+.app, .main, .page, .sidebar, .nav,
+.card, .stat, .mini, .filters, .table-wrap,
+.split, .list-pane, .map-pane, .board, .column, .col-body,
+.workspace, .today-item, .result, .kcard { min-width: 0; }
+
+.grid > *, .split > *, .filters > * { min-width: 0; }
+.page, .card, .filters, .banner, .table-wrap { max-width: 100%; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Long unbroken strings -- email addresses, URLs -- are the other way a
+   narrow column gets blown open. */
+table.data td, .result .meta, .kcard .meta, .today-item .stat-sub,
+.timeline .detail { overflow-wrap: anywhere; }
+
+@media (max-width: 1000px) {
+  .nav { max-width: 100%; }
+  .nav a { flex: 0 0 auto; }
+
+  /* On a phone the topbar actions matter more than the page title, and
+     stacking them beats squeezing them onto one line. */
+  .topbar { flex-wrap: wrap; padding: 11px 16px; gap: 10px; }
+  .topbar h1 { font-size: 18px; }
+  .page-actions { width: 100%; }
+
+  .filters { gap: 10px 14px; padding: 11px 13px; }
+  .filters label { font-size: 12px; }
+  .filters input[type="search"], .filters select { min-width: 0; flex: 1 1 130px; }
+
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .stat-value { font-size: 27px; }
+
+  /* Buttons and rows need a real touch target. */
+  .btn { padding: 10px 15px; }
+  .btn-sm { padding: 7px 11px; }
+  .result { padding: 13px 14px; }
+  .today-item { flex-wrap: wrap; }
+  .today-item .btn { margin-left: auto; }
+
+  .drawer { width: 100%; }
+  .modal { padding: 10px; }
+  .modal > .card { max-height: 92vh; }
+}
+
+@media (max-width: 560px) {
+  .page { padding: 13px; }
+  .topbar { padding: 10px 13px; }
+  .card-body, .filters { padding: 13px; }
+  /* Score, name and address stack rather than fighting for one line. */
+  .result { gap: 9px; }
+  .today-item .stat-sub, .today-item .muted { font-size: 12px; }
+}

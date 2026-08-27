@@ -33,7 +33,7 @@ MERGE_FIELDS = {
     "my_phone": "Your phone number",
     "my_email": "Your email address",
     "my_city": "Your city",
-    "commission_line": "What the host gets, from Settings",
+    "commission_line": "What the host gets -- only used if they ask",
 }
 
 
@@ -126,7 +126,6 @@ Here's how it works, and it's simpler than people expect:
 
 - We install the machine at no cost to you.
 - We stock it, service it, and handle any repairs or refunds.
-- You get {commission_line}.
 - No contract. If it isn't earning its space, we pull it out.
 
 Based on the location I'd start with {machine_types}.
@@ -150,7 +149,7 @@ Thanks,
 
 Following up on my note from last week about putting a {machine_types} machine in at {business_name}.
 
-The short version: no cost to you, we handle stocking and service, you get {commission_line}, and there's no contract.
+The short version: no cost to you, we handle stocking and service, and there's no contract.
 
 If it's a no, just say so and I'll leave you alone -- I'd rather know than keep emailing. If you'd like to see the machine first, I can bring photos or specs.
 
@@ -198,9 +197,14 @@ I'm not selling you anything; I place machines at no cost. Do you have two minut
 
 THE OFFER
 - Free to you. We buy, install, stock and service it.
-- You get {commission_line}.
 - No contract. Doesn't work out, we haul it off.
 - For a spot like this I'd start with {machine_types}.
+
+Do NOT bring up commission. Lead with free and no hassle -- that is the whole
+pitch, and most hosts say yes without ever asking about a cut.
+
+ONLY IF THEY ASK "what's in it for me?" / "do I get a cut?"
+"Yes -- {commission_line}. I'll put it in writing before anything goes in."
 
 IF THEY ALREADY HAVE ONE
 "No problem -- who services it? How's it been?"
@@ -234,10 +238,14 @@ BEFORE YOU LEAVE
 "We place and service vending machines. I'm calling about {business_name} specifically --
 {fit_reason}, so it looked like a fit.
 
-There's no cost to you. We install it, keep it stocked and serviced, and you get
-{commission_line}. No contract -- if it's not pulling its weight we take it out.
+There's no cost to you. We install it, keep it stocked and serviced, and there's
+no contract -- if it's not pulling its weight we take it out.
 
 Would it make sense for me to stop by and look at the space?"
+
+DON'T mention commission unless they ask.
+IF THEY ASK: "Yes -- {commission_line}. I'll put it in writing before anything
+goes in."
 
 LOG THE OUTCOME when you hang up -- who you spoke to, what they said,
 and the next step with a date.""",

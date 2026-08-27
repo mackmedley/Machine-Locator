@@ -636,17 +636,14 @@ def _serve(
     open_browser: bool, friendly: bool = False,
 ) -> None:
     from .web.app import create_app
-    from .web.auth import PublicBindWithoutPassword, auth_enabled, check_bind_is_safe
-
-    # Refuse to expose an unprotected instance, rather than warn about it.
-    try:
-        check_bind_is_safe(host)
-    except PublicBindWithoutPassword as exc:
-        raise click.ClickException(str(exc))
+    from .web.auth import is_loopback
 
     settings = get_settings(ctx)
     settings.ensure_dirs()
-    app = create_app(settings)
+    # Reachable from outside this machine? Then a password is mandatory, and
+    # the app walks you through setting one on first open.
+    public = not is_loopback(host)
+    app = create_app(settings, public=public)
     url = f"http://{host}:{port}"
 
     if friendly:
@@ -664,10 +661,11 @@ def _serve(
             title="Ready", expand=False,
         ))
     else:
-        lock = ("\n\n[dim]Password protection is on.[/dim]"
-                if auth_enabled() else
-                "\n\n[dim]No password set -- fine on this machine, but set\n"
-                "MACHINE_LOCATOR_PASSWORD before exposing it anywhere.[/dim]")
+        lock = ("\n\n[yellow]Reachable from other machines -- it will ask you to\n"
+                "pick a password the first time you open it.[/yellow]"
+                if public else
+                "\n\n[dim]Running privately on this machine. No password needed;\n"
+                "you can still set one in Settings.[/dim]")
         console.print(Panel(
             f"[bold green]Machine Locator is running[/bold green]\n\n"
             f"Open [bold]{url}[/bold] in your browser.\n"

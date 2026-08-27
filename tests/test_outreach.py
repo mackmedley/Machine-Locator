@@ -172,7 +172,28 @@ def test_rendered_intro_email_has_no_unfilled_fields(db):
     context = build_context(make_site(), identity(), "Dana")
     body = render(sequence_steps(db)[0]["body"], context)
     assert "{" not in body and "[" not in body
-    assert "Suds Laundromat" in body and "15% of gross" in body
+    assert "Suds Laundromat" in body
+    assert "no cost to you" in body
+
+
+def test_the_pitch_never_opens_with_a_cut_of_the_sales(db):
+    """Deliberate sales decision: lead with free and no hassle. Revenue share
+    is an answer to a question, not part of the opening offer."""
+    install_builtins(db)
+    context = build_context(make_site(), identity(), "Dana")
+    for step in sequence_steps(db):
+        body = render(step["body"], context).lower()
+        assert "15% of gross" not in body
+        assert "you get" not in body
+
+
+def test_the_scripts_carry_the_answer_for_when_they_ask(db):
+    install_builtins(db)
+    context = build_context(make_site(), identity(), "Dana")
+    for key in ("walk_in_script", "call_script"):
+        body = render(db.get_template(key)["body"], context)
+        assert "15% of gross" in body
+        assert "ask" in body.lower()
 
 
 # ----------------------------------------------------------------- sender

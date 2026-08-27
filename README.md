@@ -58,28 +58,29 @@ Your data is saved as you go.
 
 ---
 
-## Running it somewhere other than your own computer
+## Running it as a real website
 
-You don't have to. The launcher runs it locally, which is simpler and free, and
-your data stays on your machine.
+Want it on a URL you can open from your phone, the van, or any computer? Deploy
+it once and it's yours:
 
-If you want to reach it from your phone or the van, **[DEPLOY.md](DEPLOY.md)**
-covers Render (one blueprint click), Docker, and anywhere else. A `Dockerfile`,
-`Procfile` and `render.yaml` are all in the repo.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mackmedley/Machine-Locator)
 
-One thing worth knowing before you do: the database holds your email password,
-your prospect list and a queue of mail scheduled to go out under your name. So
-the app **refuses to start on a public address without a password**, rather than
-starting with a warning nobody reads:
+Render builds it, gives you a URL, and the first time you open that URL it asks
+you to **pick a password**. That's the whole setup — no environment variables to
+configure, no accounts to manage. **[DEPLOY.md](DEPLOY.md)** covers Docker and
+other hosts.
 
-```
-$ mloc serve --host 0.0.0.0
-Error: Refusing to listen on 0.0.0.0 without a password.
-```
+### The login
 
-Set `MACHINE_LOCATOR_PASSWORD` and it starts, with a login screen in front of it.
-Locally there's no password and no login — an app on `127.0.0.1` is already only
-reachable by whoever is sitting at the machine.
+One password, one operator:
+
+- **On your own computer** there's no login at all. An app on `127.0.0.1` is
+  already only reachable by whoever is sitting at it, and a login screen there
+  is friction for nothing. You can still turn one on in Settings.
+- **On a public URL** a password is mandatory, and the first screen asks you to
+  choose it. Nothing else works until you do.
+
+That's it. One field to sign in, and you stay signed in for a month.
 
 ---
 
@@ -175,6 +176,12 @@ Personalisation is per-prospect, not mail-merge-shaped: the email names the
 business, its street, what you'd stock there, and *why* it looked like a fit —
 softened into something you'd actually say out loud. ("There isn't much else
 close by for a snack" rather than the scorer's own "captive audience".)
+
+**The pitch never opens with a cut of the sales.** It leads with what actually
+wins the yes — free, we handle everything, no contract — because most hosts
+agree without ever asking what they get. Revenue share is an answer, not an
+opening offer: the call and walk-in scripts carry the line to use *if they ask*,
+and the emails don't mention it at all. There's a test that keeps it that way.
 
 **Replies stop everything, and it notices them by itself.** Connect your mailbox
 in Settings and press **Check for replies**: it reads your inbox over IMAP,
@@ -337,7 +344,7 @@ rather script it or work over SSH.
 |---|---|
 | `mloc app` | **Start the app and open your browser.** The one you'll use. |
 | `mloc serve --port 8080` | Run the server without opening a browser |
-| `mloc serve --host 0.0.0.0` | Serve publicly — requires `MACHINE_LOCATOR_PASSWORD` |
+| `mloc serve --host 0.0.0.0` | Serve on your network — asks you to pick a password on first open |
 | `mloc status` | What's in your database and when it was last refreshed |
 | `mloc locations find` | Search and score placement prospects |
 | `mloc locations list` | List stored prospects with filters |
@@ -372,7 +379,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-265 tests, no network access required. Overpass, SMTP, HTTP and robots.txt are
+279 tests, no network access required. Overpass, SMTP, HTTP and robots.txt are
 all faked at the boundary; the scrapers run against HTML fixtures — including a
 "the site got redesigned" fixture that proves the heuristic fallback works.
 The web layer is tested through Flask's test client, covering every page, the

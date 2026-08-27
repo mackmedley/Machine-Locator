@@ -22,7 +22,9 @@ def build() -> "object":
     if city:
         settings.city = city
     settings.ensure_dirs()
-    return create_app(settings)
+    # Anything served through WSGI is reachable from outside the machine, so a
+    # password is mandatory -- the first open asks for one.
+    return create_app(settings, public=True)
 
 
 app = build()

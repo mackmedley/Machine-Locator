@@ -30,6 +30,20 @@ USER_AGENT = (
 )
 
 
+# Filled in on first run so the app opens already configured. Change any of it
+# in Settings -- these are only the starting values, and they are never
+# re-applied once a setting exists.
+SEED_SETTINGS = {
+    "business_name": "Blue Ox Vending",
+    "business_phone": "405-397-2784",
+    "city": DEFAULT_CITY,
+    "daily_send_cap": "40",
+    # Only ever used if a prospect asks what they get out of it -- the pitch
+    # leads with "free and no hassle", never with a cut of the sales.
+    "commission_line": "a share of the sales, agreed in writing before anything goes in",
+}
+
+
 def default_data_dir() -> Path:
     """Where the SQLite database and exports live."""
     env = os.environ.get("MACHINE_LOCATOR_HOME")

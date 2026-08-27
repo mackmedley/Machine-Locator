@@ -110,6 +110,51 @@
   </div>
 
   <div class="card">
+    <div class="card-head">
+      <h2>Password</h2>
+      <div class="spacer"></div>
+      {% if has_password %}<span class="status status-good">on</span>
+      {% else %}<span class="status status-muted">off</span>{% endif %}
+    </div>
+    <div class="card-body">
+      {% if password_from_env %}
+        <p class="muted small" style="margin:0">
+          The password is set by <code>MACHINE_LOCATOR_PASSWORD</code> where this is
+          hosted, so it can't be changed from here. Change it there and restart.
+        </p>
+      {% else %}
+        <p class="muted small" style="margin-bottom:14px">
+          {% if has_password %}
+            One password, just for you. Change it here whenever you like.
+          {% elif is_public %}
+            This instance is reachable from the internet and must keep a password.
+          {% else %}
+            Running privately on this computer, so you don't need one. Set one if you
+            share the machine, or before you put this on the internet.
+          {% endif %}
+        </p>
+        {% if has_password %}
+        <label class="field"><span class="lbl">Current password</span>
+          <input type="password" id="pw-current" autocomplete="current-password"></label>
+        {% endif %}
+        <label class="field"><span class="lbl">{{ 'New password' if has_password else 'Password' }}</span>
+          <input type="password" id="pw-new" autocomplete="new-password"></label>
+        <label class="field"><span class="lbl">Type it again</span>
+          <input type="password" id="pw-confirm" autocomplete="new-password"></label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button type="button" class="btn btn-primary" id="btn-set-password">
+            {{ 'Change password' if has_password else 'Turn on the login' }}
+          </button>
+          {% if has_password and not is_public %}
+          <button type="button" class="btn btn-danger" id="btn-remove-password">Turn it off</button>
+          {% endif %}
+          <span id="pw-result" class="small"></span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-head"><h2>Sending limits</h2></div>
     <div class="card-body">
       <label class="field"><span class="lbl">Maximum emails per day</span>

@@ -95,6 +95,49 @@
     testEndpoint(smtpBtn, "test-result", "/api/settings/test-smtp");
   };
 
+  /* The password form is its own thing -- it never rides along with the
+     settings save, so a half-typed password can't be stored by accident. */
+  var setPw = document.getElementById("btn-set-password");
+  if (setPw) {
+    setPw.onclick = function () {
+      var out = document.getElementById("pw-result");
+      var current = document.getElementById("pw-current");
+      out.textContent = "";
+      ML.api("/api/password", {
+        body: {
+          action: "set",
+          current: current ? current.value : "",
+          password: document.getElementById("pw-new").value,
+          confirm: document.getElementById("pw-confirm").value
+        }
+      }).then(function () {
+        ML.toast("Password saved", "good");
+        setTimeout(function () { location.reload(); }, 700);
+      }).catch(function (err) {
+        out.textContent = err.message;
+        out.className = "small status status-critical";
+      });
+    };
+  }
+
+  var removePw = document.getElementById("btn-remove-password");
+  if (removePw) {
+    removePw.onclick = function () {
+      var current = document.getElementById("pw-current");
+      if (!current || !current.value) {
+        document.getElementById("pw-result").textContent =
+          "Type your current password first.";
+        return;
+      }
+      ML.api("/api/password", { body: { action: "remove", current: current.value } })
+        .then(function () {
+          ML.toast("Login turned off", "good");
+          setTimeout(function () { location.reload(); }, 700);
+        })
+        .catch(function (err) { ML.toast(err.message, "bad"); });
+    };
+  }
+
   document.getElementById("btn-suppress").onclick = function () {
     var input = document.getElementById("sup-value");
     var value = input.value.trim();

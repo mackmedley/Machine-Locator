@@ -200,7 +200,9 @@ def test_outreach_preview_blocks_sites_without_email(configured):
     assert data["blocked"][0]["problem"] == "No email address on file"
     assert data["steps"] == 3
     body = data["ready"][0]["steps"][0]["body"]
-    assert "Suds Laundromat" in body and "15% of gross" in body
+    assert "Suds Laundromat" in body
+    # The opening pitch leads with "free and no hassle", never with a cut.
+    assert "15% of gross" not in body
     assert "{" not in data["ready"][0]["steps"][0]["subject"]
 
 

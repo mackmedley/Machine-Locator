@@ -11,9 +11,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from flask import Flask, jsonify, render_template, request, send_file
+from flask import Flask, jsonify, render_template, request, send_file, session
 
-from ..config import Settings
+from ..config import SEED_SETTINGS, Settings
 from ..db import PIPELINE_STAGES, STAGE_KEYS, Database
 from ..export import (
     listings_to_csv, listings_to_json, sites_to_csv, sites_to_geojson,
@@ -35,7 +35,9 @@ from . import auth
 STAGE_LABELS = dict(PIPELINE_STAGES)
 
 
-def create_app(settings: Optional[Settings] = None) -> Flask:
+def create_app(settings: Optional[Settings] = None, public: bool = False) -> Flask:
+    """Build the app. ``public`` means it is reachable from outside this
+    machine, which makes a password mandatory rather than optional."""
     settings = settings or Settings()
     settings.ensure_dirs()
     app = Flask(__name__)
@@ -45,15 +47,20 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
     app.json.sort_keys = False
     runner = JobRunner(settings)
 
-    # Seed the built-in templates once, so the outreach page is never empty.
+    # Seed the built-in templates and starting settings once, so a fresh
+    # install opens already configured rather than blank.
     with Database(settings.db_path) as database:
         install_builtins(database)
+        for key, value in SEED_SETTINGS.items():
+            if not database.get_setting(key, ""):
+                database.set_setting(key, value)
 
     def db() -> Database:
         return Database(settings.db_path)
 
-    # Password protection, active only when MACHINE_LOCATOR_PASSWORD is set.
-    auth.install(app, db)
+    # One password, one operator. Whether it asks is decided per request, so a
+    # password set from Settings takes effect without a restart.
+    auth.install(app, db, public=public)
 
     def identity_and_smtp(database: Database):
         stored = database.all_settings()
@@ -72,7 +79,7 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
             "active_job": database.active_job(),
             "setup_complete": identity.is_complete and smtp.is_configured,
             "stages": PIPELINE_STAGES,
-            "auth_enabled": app.config.get("AUTH_ENABLED", False),
+            "auth_enabled": auth.has_password(database),
         }
 
     # ------------------------------------------------------------------ pages
@@ -129,6 +136,9 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
                 missing=identity.missing_fields(),
                 smtp_configured=smtp.is_configured,
                 imap_configured=imap_config(database).is_configured,
+                has_password=auth.has_password(database),
+                password_from_env=auth.password_is_from_env(),
+                is_public=app.config.get("PUBLIC_INSTANCE", False),
                 gate=gate,
                 suppression=database.suppression_list(),
                 **shell(database),
@@ -728,6 +738,42 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
             "ok": True,
             "message": f"Connected. {len(messages)} message(s) in the last three days.",
         })
+
+    @app.route("/api/password", methods=["POST"])
+    def api_password() -> Any:
+        """Set, change or remove the login password from the browser."""
+        payload = request.get_json(silent=True) or {}
+        action = payload.get("action", "set")
+        with db() as database:
+            if auth.password_is_from_env():
+                return jsonify({
+                    "error": "The password is set by MACHINE_LOCATOR_PASSWORD "
+                             "where this is hosted, so it can't be changed here."
+                }), 400
+
+            already = auth.has_password(database)
+            # Changing or removing an existing password requires the old one.
+            if already and not auth.check_password(database, payload.get("current", "")):
+                return jsonify({"error": "Your current password isn't right."}), 400
+
+            if action == "remove":
+                if app.config.get("PUBLIC_INSTANCE"):
+                    return jsonify({
+                        "error": "This instance is reachable from the internet, "
+                                 "so it has to keep a password."
+                    }), 400
+                auth.clear_password(database)
+                session.clear()
+                return jsonify({"ok": True, "protected": False})
+
+            chosen = str(payload.get("password", ""))
+            problem = auth.password_problem(chosen, payload.get("confirm"))
+            if problem:
+                return jsonify({"error": problem}), 400
+            auth.set_password(database, chosen)
+            session["authenticated"] = True
+            session.permanent = True
+            return jsonify({"ok": True, "protected": True})
 
     @app.route("/api/suppression", methods=["GET", "POST"])
     def api_suppression() -> Any:

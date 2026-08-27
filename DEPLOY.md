@@ -18,23 +18,20 @@ The database holds:
 - your **outreach queue** — emails scheduled to go out under your name
 
 An unprotected public instance would let anyone who finds the URL send mail from
-your account. So the app **refuses to start on a public address without a
-password**:
+your account. So a public instance **must** have a password — but you don't have
+to set one up front. The first time you open the site it asks you to pick one,
+and nothing else works until you do:
 
-```
-$ mloc serve --host 0.0.0.0
-Error: Refusing to listen on 0.0.0.0 without a password.
-```
+> **Pick a password**
+> This one's on the internet, so it needs a password before it will do anything.
 
-Set one and it starts:
+One password, one operator. There are no accounts to manage.
 
-```bash
-export MACHINE_LOCATOR_PASSWORD='a long random phrase you can remember'
-mloc serve --host 0.0.0.0 --port 8000
-```
-
-There's one password and one operator. This is a tool for a person running a
-vending route, not a service with user accounts.
+Do it promptly after deploying: between the deploy finishing and you choosing a
+password, whoever opens the URL first gets to set it. There's nothing in the
+instance yet at that point, so the worst case is you redeploy — but if you'd
+rather close that window entirely, set `MACHINE_LOCATOR_PASSWORD` in your host's
+dashboard before the first deploy and the app will use that instead.
 
 ---
 
@@ -44,12 +41,13 @@ Render reads [`render.yaml`](render.yaml) and does the rest.
 
 1. Push this repository to your own GitHub account.
 2. At [render.com](https://render.com), pick **New → Blueprint** and point it at
-   the repo.
-3. Render creates the service, generates `MACHINE_LOCATOR_PASSWORD` and
-   `MACHINE_LOCATOR_SECRET_KEY`, and attaches a 1 GB disk at `/data`.
-4. Copy the generated password out of the dashboard — that's your login.
-5. Add your mail password as `MACHINE_LOCATOR_SMTP_PASSWORD` in the dashboard.
-   Don't commit it.
+   the repo. (Or use the deploy button in the README.)
+3. Render builds it, attaches a 1 GB disk at `/data`, and gives you a URL.
+4. Open the URL. It asks you to pick a password. That's your login from then on.
+5. In the app: **Settings** → fill in your business details and mail account.
+   For the mail password you can either type it into Settings, or set
+   `MACHINE_LOCATOR_SMTP_PASSWORD` in the Render dashboard so it never touches
+   the database.
 
 The blueprint uses the **starter** plan on purpose. The free plan has no
 persistent disk, so every redeploy would wipe your prospect list and pipeline.
@@ -63,12 +61,12 @@ The [`Dockerfile`](Dockerfile) is plain and portable:
 ```bash
 docker build -t machine-locator .
 docker run -p 8000:8000 \
-  -e MACHINE_LOCATOR_PASSWORD='a long random phrase' \
-  -e MACHINE_LOCATOR_SMTP_PASSWORD='your app password' \
   -e MACHINE_LOCATOR_HTTPS=1 \
   -v machine-locator-data:/data \
   machine-locator
 ```
+
+Then open `http://localhost:8000` and pick a password when it asks.
 
 Fly.io, Railway and Heroku all work from the same image, or from the
 [`Procfile`](Procfile) if the host builds from source.
@@ -77,7 +75,7 @@ Fly.io, Railway and Heroku all work from the same image, or from the
 
 | Variable | What it does |
 |---|---|
-| `MACHINE_LOCATOR_PASSWORD` | **Required in public.** Turns on the login and is the password you type. |
+| `MACHINE_LOCATOR_PASSWORD` | Optional. Sets the login password from the host instead of picking one in the browser. When set, it wins and the in-app password form is disabled. |
 | `MACHINE_LOCATOR_SECRET_KEY` | Signs session cookies. Set it, or one is generated and stored in the database. |
 | `MACHINE_LOCATOR_HTTPS` | Set to `1` behind HTTPS so the session cookie is marked secure. |
 | `MACHINE_LOCATOR_HOME` | Where the database lives. Point it at your mounted disk. |

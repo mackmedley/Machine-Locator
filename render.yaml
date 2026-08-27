@@ -5,22 +5,26 @@ services:
     name: machine-locator
     runtime: docker
     plan: starter          # the free plan has no persistent disk; see below
-    healthCheckPath: /login
+    healthCheckPath: /setup
     envVars:
-      # Generated once by Render and kept. This is the password you sign in with.
-      - key: MACHINE_LOCATOR_PASSWORD
-        generateValue: true
+      # Signs the login cookie. Generated once by Render and kept, so you stay
+      # signed in across restarts.
       - key: MACHINE_LOCATOR_SECRET_KEY
         generateValue: true
-      # Tells the app it is behind HTTPS, so the session cookie is marked secure.
+      # Tells the app it is behind HTTPS, so the login cookie is marked secure.
       - key: MACHINE_LOCATOR_HTTPS
         value: "1"
       - key: MACHINE_LOCATOR_HOME
         value: /data
-      # Your mail password. Set this yourself in the dashboard -- never commit it.
+      # Your mail password, so it never goes in the database. Set it yourself
+      # in the Render dashboard once the service exists -- never commit it.
       - key: MACHINE_LOCATOR_SMTP_PASSWORD
         sync: false
     disk:
       name: machine-locator-data
       mountPath: /data
       sizeGB: 1
+
+# There is deliberately no MACHINE_LOCATOR_PASSWORD here. The first time you
+# open the site it asks you to pick one, which is simpler than copying a
+# generated value out of a dashboard. Nothing works until you do.
