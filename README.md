@@ -25,7 +25,7 @@ this folder — delete the folder and it's gone.
 
 **[Try the interactive preview →](https://claude.ai/code/artifact/81ee93e6-7bbf-4be9-a171-daa503774da4)**
 — the real interface running on sample data, so you can click around from any
-device before you download anything.
+device before you download anything. (Source: [`docs/preview.html`](docs/preview.html).)
 
 ![The dashboard](docs/dashboard.png)
 

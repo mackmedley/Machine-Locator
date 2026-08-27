@@ -1,0 +1,1206 @@
+<title>Machine Locator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* Tokens carried over from the desktop app, so this preview is the product
+   rather than a lookalike. The grade ramp is a single-hue ordinal scale
+   (monotone lightness) -- a D is a lower rank, not an error state. */
+:root {
+  color-scheme: light;
+  --bg: #f1f1ee;
+  --surface: #fcfcfb;
+  --surface-2: #f0efec;
+  --surface-3: #e6e5e1;
+  --line: #e0dfda;
+  --line-strong: #cbcac3;
+
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #85847d;
+
+  --accent: #2a78d6;
+  --accent-deep: #1c5cab;
+  --accent-on: #ffffff;
+  --accent-soft: #e6effc;
+
+  --good: #0ca30c;
+  --warn: #fab219;
+  --crit: #d03b3b;
+  --good-soft: #e5f5e5;
+  --warn-soft: #fdf3de;
+  --crit-soft: #fbe9e9;
+
+  --g-ap: #104281; --g-ap-on: #ffffff;
+  --g-a:  #1c5cab; --g-a-on:  #ffffff;
+  --g-b:  #2a78d6; --g-b-on:  #ffffff;
+  --g-c:  #5598e7; --g-c-on:  #07203a;
+  --g-d:  #86b6ef; --g-d-on:  #07203a;
+
+  --shadow-1: 0 1px 2px rgba(16,18,22,.06);
+  --shadow-2: 0 4px 16px rgba(16,18,22,.09), 0 1px 3px rgba(16,18,22,.05);
+  --shadow-3: 0 20px 52px rgba(16,18,22,.17), 0 2px 8px rgba(16,18,22,.08);
+
+  --r: 10px;
+  --r-sm: 7px;
+  --r-lg: 18px;
+
+  --ui: "Archivo", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110;
+    --surface: #1a1a19;
+    --surface-2: #232322;
+    --surface-3: #2c2c2a;
+    --line: #2f2f2c;
+    --line-strong: #45443f;
+
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-3: #8e8d84;
+
+    --accent: #3987e5;
+    --accent-deep: #6da7ec;
+    --accent-on: #06111f;
+    --accent-soft: #16273c;
+
+    --good-soft: #12300f;
+    --warn-soft: #372c10;
+    --crit-soft: #371818;
+
+    --g-ap: #cde2fb; --g-ap-on: #06111f;
+    --g-a:  #9ec5f4; --g-a-on:  #06111f;
+    --g-b:  #6da7ec; --g-b-on:  #06111f;
+    --g-c:  #3987e5; --g-c-on:  #ffffff;
+    --g-d:  #184f95; --g-d-on:  #ffffff;
+
+    --shadow-1: 0 1px 2px rgba(0,0,0,.5);
+    --shadow-2: 0 4px 16px rgba(0,0,0,.45);
+    --shadow-3: 0 20px 52px rgba(0,0,0,.62);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110;
+  --surface: #1a1a19;
+  --surface-2: #232322;
+  --surface-3: #2c2c2a;
+  --line: #2f2f2c;
+  --line-strong: #45443f;
+
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --ink-3: #8e8d84;
+
+  --accent: #3987e5;
+  --accent-deep: #6da7ec;
+  --accent-on: #06111f;
+  --accent-soft: #16273c;
+
+  --good-soft: #12300f;
+  --warn-soft: #372c10;
+  --crit-soft: #371818;
+
+  --g-ap: #cde2fb; --g-ap-on: #06111f;
+  --g-a:  #9ec5f4; --g-a-on:  #06111f;
+  --g-b:  #6da7ec; --g-b-on:  #06111f;
+  --g-c:  #3987e5; --g-c-on:  #ffffff;
+  --g-d:  #184f95; --g-d-on:  #ffffff;
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,.5);
+  --shadow-2: 0 4px 16px rgba(0,0,0,.45);
+  --shadow-3: 0 20px 52px rgba(0,0,0,.62);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { margin: 0; font-weight: 700; letter-spacing: -.02em; text-wrap: balance; }
+h1 { font-size: clamp(25px, 3.6vw, 37px); line-height: 1.14; max-width: 27ch; }
+h2 { font-size: clamp(19px, 2.3vw, 24px); line-height: 1.24; }
+h3 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+p { margin: 0 0 12px; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+code, .mono { font-family: var(--mono); }
+.num { font-variant-numeric: tabular-nums; font-family: var(--mono); }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 5px; }
+
+.eyebrow {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3);
+}
+.lede { color: var(--ink-2); font-size: 16.5px; max-width: 64ch; }
+.muted { color: var(--ink-3); }
+.small { font-size: 13px; }
+.wrap { width: min(1220px, 100% - 40px); margin-inline: auto; }
+
+/* ------------------------------------------------------------- masthead */
+.masthead {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 60;
+}
+.masthead .wrap {
+  display: flex; align-items: center; gap: 16px;
+  padding: 13px 0; flex-wrap: wrap;
+}
+.logo {
+  width: 34px; height: 34px; border-radius: 9px; flex: none;
+  background: linear-gradient(155deg, var(--accent), var(--accent-deep));
+  display: grid; place-items: center; color: #fff;
+}
+.logo svg { width: 19px; height: 19px; }
+.wordmark strong { display: block; font-size: 15.5px; letter-spacing: -.02em; line-height: 1.2; }
+.wordmark span { display: block; font-size: 12px; color: var(--ink-3); }
+.masthead .spacer { flex: 1; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 11px; border-radius: 20px;
+  font-size: 12.5px; font-weight: 500;
+  background: var(--warn-soft); color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line));
+}
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: none; }
+
+/* ------------------------------------------------------------ intro band */
+.intro { padding: 34px 0 24px; }
+.intro h1 { margin-bottom: 10px; }
+.intro .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 9px 16px; border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+  box-shadow: var(--shadow-1); text-decoration: none; white-space: nowrap;
+  transition: background .14s ease, border-color .14s ease, transform .08s ease;
+}
+.btn:hover { background: var(--surface-2); border-color: var(--ink-3); }
+.btn:active { transform: translateY(1px); }
+.btn svg { width: 15px; height: 15px; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
+.btn-primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+.btn-sm { padding: 5px 11px; font-size: 12.5px; }
+.btn-ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-2); }
+.btn-ghost:hover { background: var(--surface-2); color: var(--ink); }
+
+/* ----------------------------------------------------------- workspace */
+.workspace {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-2);
+  overflow: hidden; margin-bottom: 46px;
+}
+.tabbar {
+  display: flex; gap: 2px; padding: 8px 10px 0;
+  border-bottom: 1px solid var(--line); background: var(--surface-2);
+  overflow-x: auto;
+}
+.tabbar button {
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  padding: 9px 14px 10px; font: inherit; font-size: 13.5px; font-weight: 500;
+  color: var(--ink-3); cursor: pointer; white-space: nowrap; margin-bottom: -1px;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.tabbar button:hover { color: var(--ink); }
+.tabbar button[aria-selected="true"] { color: var(--accent-deep); border-bottom-color: var(--accent); font-weight: 600; }
+.tabbar .count {
+  font-family: var(--mono); font-size: 11px; background: var(--surface-3);
+  color: var(--ink-2); border-radius: 20px; padding: 1px 7px;
+}
+.panel { padding: 16px; }
+.panel[hidden] { display: none; }
+
+.toolbar {
+  display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+  padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line);
+}
+.toolbar label { font-size: 12.5px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.toolbar .spacer { flex: 1; }
+input[type="search"], select {
+  padding: 7px 10px; font: inherit; font-size: 13.5px;
+  color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+}
+input[type="search"]:focus, select:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+input[type="range"] { accent-color: var(--accent); width: 120px; }
+
+/* --------------------------------------------------------------- grades */
+.grade {
+  display: inline-grid; place-items: center; min-width: 36px; height: 23px;
+  padding: 0 7px; border-radius: 6px; flex: none;
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+}
+.g-ap { background: var(--g-ap); color: var(--g-ap-on); }
+.g-a  { background: var(--g-a);  color: var(--g-a-on); }
+.g-b  { background: var(--g-b);  color: var(--g-b-on); }
+.g-c  { background: var(--g-c);  color: var(--g-c-on); }
+.g-d  { background: var(--g-d);  color: var(--g-d-on); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 1px 8px; border-radius: 20px; font-size: 11.5px; font-weight: 500;
+  background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line);
+}
+.pill-good { background: var(--good-soft); color: var(--good); border-color: transparent; }
+.pill-warn { background: var(--warn-soft); color: #8a6206; border-color: transparent; }
+:root[data-theme="dark"] .pill-warn { color: var(--warn); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill-warn { color: var(--warn); } }
+
+/* ----------------------------------------------------------- split view */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 16px; }
+.rows { display: flex; flex-direction: column; gap: 6px; max-height: 480px; overflow-y: auto; padding-right: 4px; }
+.row {
+  display: flex; gap: 11px; align-items: flex-start; text-align: left; width: 100%;
+  padding: 10px 12px; border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: var(--surface);
+  cursor: pointer; font: inherit; color: inherit;
+  transition: border-color .13s ease, background .13s ease;
+}
+.row:hover { background: var(--surface-2); border-color: var(--line-strong); }
+.row[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.row .name { display: block; font-weight: 600; font-size: 13.8px; line-height: 1.35; }
+.row .meta { display: block; font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+
+.detail {
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 16px; align-self: start;
+  position: sticky; top: 78px; max-height: 480px; overflow-y: auto;
+}
+.detail h3 { margin-bottom: 3px; }
+.detail .addr { font-size: 12.5px; color: var(--ink-3); margin-bottom: 14px; }
+dl.kv { display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; margin: 0 0 14px; font-size: 13px; }
+dl.kv dt { color: var(--ink-3); }
+dl.kv dd { margin: 0; }
+
+.bar-row {
+  display: grid; grid-template-columns: 96px 1fr 30px; gap: 9px;
+  align-items: center; margin-bottom: 5px; font-size: 11.5px; color: var(--ink-2);
+}
+.track { height: 7px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+.track > span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.bar-row .num { font-size: 11.5px; text-align: right; color: var(--ink-3); }
+
+.reasons { margin: 12px 0 0; padding-left: 17px; font-size: 12.5px; color: var(--ink-2); }
+.reasons li { margin-bottom: 4px; }
+
+/* --------------------------------------------------------------- today */
+.today-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--line);
+}
+.today-row:first-child { padding-top: 0; }
+.today-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.today-row > .body { flex: 1; min-width: 0; }
+.today-row .head { font-weight: 600; font-size: 13.6px; }
+.today-row .sub { font-size: 12.3px; color: var(--ink-3); margin-top: 1px; }
+.today-n {
+  font-family: var(--mono); font-size: 20px; font-weight: 600;
+  color: var(--accent-deep); min-width: 34px; text-align: center; flex: none;
+}
+.today-empty { padding: 26px 4px; color: var(--ink-3); font-size: 13.5px; }
+
+/* --------------------------------------------------------------- board */
+.board { display: flex; gap: 11px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
+.col {
+  flex: 0 0 236px; background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: var(--r);
+  display: flex; flex-direction: column; max-height: 430px;
+}
+.col.over { border-color: var(--accent); background: var(--accent-soft); }
+.col-head {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-bottom: 1px solid var(--line); font-size: 12.5px; font-weight: 600;
+}
+.col-head .n { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.col-body { padding: 8px; display: flex; flex-direction: column; gap: 7px; overflow-y: auto; min-height: 56px; }
+.kcard {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 9px 10px; cursor: grab;
+  box-shadow: var(--shadow-1);
+}
+.kcard:active { cursor: grabbing; }
+.kcard.dragging { opacity: .4; }
+.kcard .top { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+.kcard .name { font-weight: 600; font-size: 12.8px; line-height: 1.3; min-width: 0; overflow-wrap: anywhere; }
+.kcard .meta { font-size: 11.5px; color: var(--ink-3); }
+
+/* ------------------------------------------------------------- outreach */
+.mailgrid { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 16px; }
+.mail {
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 14px 16px; margin-bottom: 11px;
+}
+.mail .when {
+  font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--ink-3); margin-bottom: 7px;
+}
+.mail .subject { font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+.mail .body { white-space: pre-wrap; font-size: 13.2px; color: var(--ink-2); line-height: 1.65; }
+.mail .footer-note {
+  margin-top: 12px; padding-top: 11px; border-top: 1px dashed var(--line-strong);
+  font-size: 12px; color: var(--ink-3);
+}
+
+/* --------------------------------------------------------------- table */
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.2px; }
+th {
+  text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 600;
+  font-family: var(--mono); text-transform: uppercase; letter-spacing: .07em;
+  color: var(--ink-3); background: var(--surface-2);
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody tr:hover { background: var(--surface-2); }
+td.num, th.num { text-align: right; }
+.why { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+
+/* -------------------------------------------------------------- charts */
+.chartcard { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.mini {
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 14px 16px;
+}
+.mini h3 { margin-bottom: 12px; }
+.gradebar { display: grid; grid-template-columns: 26px 1fr 30px; gap: 9px; align-items: center; margin-bottom: 6px; }
+.gradebar .lab { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.gradebar .n { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); text-align: right; }
+
+/* ------------------------------------------------------------- sections */
+section.band { padding: 0 0 46px; }
+.band-head { margin-bottom: 20px; }
+.band-head .eyebrow { display: block; margin-bottom: 7px; }
+
+.weights { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 12px; }
+.weight {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 14px 15px;
+}
+.weight .top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.weight .pct { font-family: var(--mono); font-size: 19px; font-weight: 600; color: var(--accent-deep); }
+.weight .nm { font-weight: 600; font-size: 13.5px; }
+.weight p { margin: 0; font-size: 12.8px; color: var(--ink-2); }
+
+.callout {
+  background: var(--surface); border: 1px solid var(--line);
+  border-left: 3px solid var(--accent); border-radius: var(--r);
+  padding: 16px 18px; margin-top: 16px;
+}
+.callout p:last-child { margin-bottom: 0; }
+
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; counter-reset: step; }
+.step {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 16px 17px; counter-increment: step; position: relative;
+}
+.step::before {
+  content: counter(step);
+  font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+  color: var(--accent-on); background: var(--accent);
+  width: 21px; height: 21px; border-radius: 6px;
+  display: grid; place-items: center; margin-bottom: 10px;
+}
+.step h3 { margin-bottom: 5px; }
+.step p { margin: 0; font-size: 13.2px; color: var(--ink-2); }
+.step code {
+  display: block; margin-top: 9px; padding: 8px 10px; font-size: 12px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--r-sm); overflow-x: auto; white-space: pre;
+}
+
+.foot {
+  border-top: 1px solid var(--line); padding: 26px 0 40px;
+  color: var(--ink-3); font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; }
+  .detail { position: static; max-height: none; }
+  .mailgrid { grid-template-columns: 1fr; }
+  .rows { max-height: 340px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+        <rect x="4" y="2.5" width="16" height="19" rx="2"/>
+        <path d="M4 9h16M4 15h16M12 2.5v19"/>
+      </svg>
+    </div>
+    <div class="wordmark">
+      <strong>Machine Locator</strong>
+      <span>Vending prospecting &amp; outreach — Oklahoma City</span>
+    </div>
+    <div class="spacer"></div>
+    <span class="chip"><span class="dot"></span> Preview · sample data, not real businesses</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="intro">
+    <span class="eyebrow">Click anything below</span>
+    <h1>Every business in the metro, ranked by whether a machine there would pay for itself.</h1>
+    <p class="lede">
+      This is the real interface running on sample data, so you can try it from any
+      device. The working app scans OpenStreetMap for the actual businesses around
+      you, then queues personalised outreach to the ones worth approaching.
+    </p>
+    <div class="actions">
+      <a class="btn btn-primary" href="#get-it">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>
+        Get the working app
+      </a>
+      <a class="btn" href="#scoring">How the score works</a>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="tabbar" role="tablist" aria-label="Machine Locator sections">
+      <button role="tab" id="tab-today" aria-controls="p-today" aria-selected="true">
+        Today <span class="count" id="n-today">0</span>
+      </button>
+      <button role="tab" id="tab-prospects" aria-controls="p-prospects" aria-selected="false">
+        Prospects <span class="count" id="n-prospects">28</span>
+      </button>
+      <button role="tab" id="tab-pipeline" aria-controls="p-pipeline" aria-selected="false">
+        Pipeline
+      </button>
+      <button role="tab" id="tab-outreach" aria-controls="p-outreach" aria-selected="false">
+        Outreach
+      </button>
+      <button role="tab" id="tab-routes" aria-controls="p-routes" aria-selected="false">
+        Routes for sale <span class="count">5</span>
+      </button>
+    </div>
+
+    <!-- -------------------------------------------------------- today -->
+    <div class="panel" id="p-today" role="tabpanel" aria-labelledby="tab-today">
+      <p class="small muted" style="margin-bottom:14px">
+        The app opens on this: not a status report, but the short list of things
+        that need a person today. Everything the sequence can handle on its own
+        stays out of it.
+      </p>
+      <div id="today-list"></div>
+      <div class="mini" style="margin-top:16px">
+        <h3>What never appears here</h3>
+        <p class="small" style="color:var(--ink-2);margin:0">
+          Follow-up emails that are simply scheduled, and replies that already
+          resolved themselves. An intro email waiting to go out is the sender's
+          job — listing it as a task would bury the actual phone calls.
+        </p>
+      </div>
+    </div>
+
+    <!-- ---------------------------------------------------- prospects -->
+    <div class="panel" id="p-prospects" role="tabpanel" aria-labelledby="tab-prospects" hidden>
+      <div class="toolbar">
+        <label>Min score
+          <input type="range" id="f-score" min="0" max="100" step="5" value="0">
+          <output class="num" id="f-score-out" style="min-width:22px">0</output>
+        </label>
+        <label>Type
+          <select id="f-type"><option value="">All types</option></select>
+        </label>
+        <label><input type="search" id="f-q" placeholder="Search name or street"></label>
+        <div class="spacer"></div>
+        <span class="small muted" id="p-count"></span>
+      </div>
+
+      <div class="split">
+        <div class="rows" id="p-rows" role="listbox" aria-label="Ranked prospects"></div>
+        <aside class="detail" id="p-detail" aria-live="polite"></aside>
+      </div>
+
+      <div class="chartcard" style="margin-top:18px">
+        <div class="mini">
+          <h3>How the 28 sample sites grade out</h3>
+          <div id="grade-chart"></div>
+          <p class="small muted" style="margin:10px 0 0">
+            A+ is best. One hue, light to dark — a D is a lower rank, not a problem.
+          </p>
+        </div>
+        <div class="mini">
+          <h3>What the working app adds</h3>
+          <p class="small" style="color:var(--ink-2)">
+            A live map of every pin, a real scan of your metro (roughly 400 sites in
+            Oklahoma City), CSV and Google&nbsp;My&nbsp;Maps export, and territory
+            clustering so one day's driving stays in one part of town.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ----------------------------------------------------- pipeline -->
+    <div class="panel" id="p-pipeline" role="tabpanel" aria-labelledby="tab-pipeline" hidden>
+      <p class="small muted" style="margin-bottom:14px">
+        Drag a card between columns — it sticks, even if you reload. In the working
+        app, moving one to <strong>Won</strong> or <strong>Lost</strong> also cancels
+        any follow-up emails still queued for it.
+      </p>
+      <div class="board" id="board"></div>
+      <p style="margin-top:14px">
+        <button class="btn btn-sm btn-ghost" id="reset-board">Reset the board</button>
+      </p>
+    </div>
+
+    <!-- ----------------------------------------------------- outreach -->
+    <div class="panel" id="p-outreach" role="tabpanel" aria-labelledby="tab-outreach" hidden>
+      <div class="toolbar">
+        <label>Write to
+          <select id="o-site"></select>
+        </label>
+        <div class="spacer"></div>
+        <span class="small muted">Three emails, scheduled up front</span>
+      </div>
+      <div class="mailgrid">
+        <div>
+          <div class="mini">
+            <h3>What gets queued</h3>
+            <dl class="kv">
+              <dt>Day 0</dt><dd>Intro — the offer</dd>
+              <dt>Day 4</dt><dd>Short nudge</dd>
+              <dt>Day 11</dt><dd>Final note, then it stops</dd>
+            </dl>
+            <p class="small" style="color:var(--ink-2);margin:0">
+              Each one names the business, its street, what you'd stock there, and why
+              it looked like a fit — in language you'd actually say out loud.
+            </p>
+          </div>
+          <div class="mini" style="margin-top:12px">
+            <h3>Replies stop it automatically</h3>
+            <p class="small" style="color:var(--ink-2);margin:0 0 10px">
+              Connect your mailbox and the app reads it, matches each reply to the
+              email it answers, and cancels the rest of that sequence on the spot.
+              A positive reply moves the prospect to <em>Interested</em>; an opt-out
+              suppresses the address and its whole domain, permanently.
+            </p>
+            <p class="small" style="color:var(--ink-3);margin:0">
+              It only ever reads — nothing in your mailbox is marked, moved or
+              deleted. Nobody who said yes gets a "sorry I missed you" a week later.
+            </p>
+          </div>
+        </div>
+        <div id="o-mails"></div>
+      </div>
+    </div>
+
+    <!-- ------------------------------------------------------- routes -->
+    <div class="panel" id="p-routes" role="tabpanel" aria-labelledby="tab-routes" hidden>
+      <p class="small muted" style="margin-bottom:14px">
+        Vending routes listed for sale, scored for whether they're genuinely a local
+        route. Price per machine and multiple of cash flow are worked out for you —
+        the two numbers that say whether an asking price is sane.
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th class="num">Fit</th><th>Listing</th><th class="num">Asking</th>
+            <th class="num">Cash flow</th><th class="num">Machines</th>
+            <th class="num">$/machine</th><th class="num">Multiple</th><th>Where</th>
+          </tr></thead>
+          <tbody id="r-rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- --------------------------------------------------------- scoring -->
+  <section class="band" id="scoring">
+    <div class="band-head">
+      <span class="eyebrow">The model</span>
+      <h2>Seven things decide whether a machine earns its floor space</h2>
+      <p class="lede">
+        Each is scored 0–10 and weighted into a single number out of 100. The weights
+        sum to exactly 1.0, which the test suite checks.
+      </p>
+    </div>
+    <div class="weights">
+      <div class="weight"><div class="top"><span class="pct">24%</span><span class="nm">Traffic</span></div>
+        <p>How many people pass through daily, nudged by size clues in the map data — hotel rooms, apartment units, storeys.</p></div>
+      <div class="weight"><div class="top"><span class="pct">22%</span><span class="nm">Dwell</span></div>
+        <p>How long somebody is stuck there with nothing to do. A laundromat is 90 minutes; a hardware store is six.</p></div>
+      <div class="weight"><div class="top"><span class="pct">16%</span><span class="nm">Captivity</span></div>
+        <p>Measured, not assumed: every store, cafe, drive-thru and gas station within 400m is counted and docks the score.</p></div>
+      <div class="weight"><div class="top"><span class="pct">10%</span><span class="nm">Winnability</span></div>
+        <p>How locked-up the category already is. This is the one that matters most.</p></div>
+      <div class="weight"><div class="top"><span class="pct">10%</span><span class="nm">Hours</span></div>
+        <p>Whether the machine sells around the clock or only nine to five.</p></div>
+      <div class="weight"><div class="top"><span class="pct">10%</span><span class="nm">Access</span></div>
+        <p>How easy it is to service — parking, ground floor, and hours a driver can actually turn up.</p></div>
+      <div class="weight"><div class="top"><span class="pct">8%</span><span class="nm">Route density</span></div>
+        <p>How many other prospects sit within 1.5km. Windshield time is most of what a route costs to run.</p></div>
+    </div>
+    <div class="callout">
+      <p><strong>Why winnability is the one that earns its keep.</strong>
+      A hospital scores 10 for traffic and 10 for dwell — and a one-truck operator will
+      essentially never win it, because a national contract already has it. The model
+      knows that, so laundromats and machine shops rise above hospitals and schools.
+      Anything else would hand you a ranked list of doors that don't open.</p>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------------- get it -->
+  <section class="band" id="get-it">
+    <div class="band-head">
+      <span class="eyebrow">Run the real one</span>
+      <h2>Three steps, then it's a double-click forever after</h2>
+      <p class="lede">
+        The working app runs on your own computer — your prospect list, your notes and
+        your email account stay there. Nothing is uploaded anywhere.
+      </p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <h3>Download the folder</h3>
+        <p>Grab the repository from GitHub and unzip it wherever you keep your work.</p>
+        <code>github.com/mackmedley/Machine-Locator</code>
+      </div>
+      <div class="step">
+        <h3>Double-click the launcher</h3>
+        <p><strong>Machine Locator.command</strong> on a Mac, <strong>Machine Locator.bat</strong> on Windows. The first run sets itself up; after that it opens in seconds.</p>
+      </div>
+      <div class="step">
+        <h3>Press "Find prospects"</h3>
+        <p>It scans your metro and ranks what it finds. To send outreach, add your business details and email account in Settings first.</p>
+      </div>
+    </div>
+    <div class="callout">
+      <p><strong>Why this preview can't do the real work.</strong>
+      Scanning OpenStreetMap and sending email both need a server, and a shared web page
+      is the wrong place for your mail password and your prospect list. So the page you're
+      reading is the interface; the app on your machine is the tool.</p>
+      <p style="margin-top:10px"><strong>Want it on a URL of your own?</strong>
+      There's a Docker image and a one-click Render blueprint in the repo. Because the
+      database holds your mail password and a queue of email scheduled under your name,
+      the app refuses to start on a public address until you set a password — then it
+      puts a login in front of everything.</p>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Sample data throughout — the businesses shown here are invented, and any resemblance
+    to a real Oklahoma City company is coincidental. The working app finds real ones.
+  </footer>
+</main>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------ the data */
+/* Invented businesses with realistic tags, scored by the same model the
+   desktop app uses, so the numbers hang together. */
+const SITES = [
+  ["s1","Northline Coin Laundry","Laundromat","laundromat",81.4,"A","4180 N Portland Ave, Oklahoma City",{traffic:6,dwell:9.5,captivity:9,winnability:8,hours:10,access:9,route_density:6},["90 minutes with nothing to do and a pocket of quarters. Small owners, easy yes.","no store, cafe or drive-thru within 400m","open 24/7 — sells on every shift"],0,"snack, cold drink"],
+  ["s2","Redbud Plastics","Manufacturing / plant","manufacturing",80.2,"A","7715 SW 15th St, Oklahoma City",{traffic:7.5,dwell:9.5,captivity:9.5,winnability:6,hours:8,access:8,route_density:6},["Shift workers, unpaid short breaks, often nothing within a mile. The classic bread-and-butter vending account.","no store, cafe or drive-thru within 400m","open seven days"],0,"snack, cold drink, coffee, fresh food"],
+  ["s3","Meridian Fleet Services","Auto repair / tire shop","auto_repair",78.6,"A","2240 S Meridian Ave, Oklahoma City",{traffic:5.5,dwell:8.5,captivity:8.5,winnability:8,hours:6.5,access:9,route_density:8},["Waiting rooms are the definition of a captive audience.","1 competing option within 400m","12 other prospects nearby"],0,"snack, cold drink, coffee"],
+  ["s4","Cattlemen's Court Inn","Hotel / motel","hotel",77.9,"A","1908 S Air Depot Blvd, Midwest City",{traffic:8,dwell:9,captivity:8.3,winnability:5.5,hours:10,access:8,route_density:4},["24/7 guests who will not drive out for a soda at 11pm.","210 rooms — large property","1 competing option within 400m"],0,"snack, cold drink, sundries"],
+  ["s5","Plains Freight Depot","Warehouse / distribution","warehouse",77.1,"A","6600 SE 74th St, Oklahoma City",{traffic:6.5,dwell:9,captivity:9,winnability:6.5,hours:8,access:8.5,route_density:5},["Night shifts and dock crews. Drinks move hard in an OKC summer.","no store, cafe or drive-thru within 400m"],0,"snack, cold drink, coffee"],
+  ["s6","Silverline Call Center","Call center / business park","call_center",76.4,"A","5100 N Classen Blvd, Oklahoma City",{traffic:7.5,dwell:9,captivity:7,winnability:5.5,hours:6.5,access:7,route_density:9},["Scheduled breaks, no time to leave the building. Excellent.","2 competing options within 400m","19 other prospects nearby — dense territory"],0,"snack, cold drink, coffee, fresh food"],
+  ["s7","Bricktown Suds","Laundromat","laundromat",75.8,"A","325 E Reno Ave, Oklahoma City",{traffic:6,dwell:9.5,captivity:6.6,winnability:8,hours:8,access:9,route_density:8},["90 minutes with nothing to do and a pocket of quarters. Small owners, easy yes.","2 competing options within 400m"],0,"snack, cold drink"],
+  ["s8","Yukon Iron Athletic","Gym / fitness center","gym",74.2,"A","1120 Garth Brooks Blvd, Yukon",{traffic:8,dwell:6.5,captivity:8,winnability:5.5,hours:10,access:8,route_density:5},["Drinks, protein and sports recovery. Snacks underperform here.","open 24/7 — sells on every shift"],0,"cold drink, coffee"],
+  ["s9","Broadway Extension Storage","Self storage","self_storage",72.6,"B","12800 N Broadway Ext, Oklahoma City",{traffic:4,dwell:6,captivity:8.5,winnability:8,hours:6,access:9,route_density:6},["Low volume, near-zero competition, easy owner conversation.","no store, cafe or drive-thru within 400m"],0,"cold drink"],
+  ["s10","Deep Deuce Lofts","Apartment complex","apartments",72.0,"B","301 NE 2nd St, Oklahoma City",{traffic:7.5,dwell:7,captivity:6.3,winnability:6.5,hours:6,access:7,route_density:9},["Laundry rooms and pool houses. Vandalism risk — check lighting.","260 units — supports multiple machines","2 competing options within 400m"],0,"snack, cold drink"],
+  ["s11","Station 14 Firehouse","Fire / police station","public_safety",71.5,"B","2201 NW 122nd St, Oklahoma City",{traffic:4,dwell:9.5,captivity:8.5,winnability:6,hours:10,access:7.5,route_density:4},["Small headcount, but 24-hour shifts and steady spend.","open 24/7 — sells on every shift"],0,"snack, cold drink, coffee"],
+  ["s12","Edmond Family Clinic","Clinic / medical office","clinic",70.8,"B","1425 E 2nd St, Edmond",{traffic:6,dwell:8,captivity:7.5,winnability:6.5,hours:6.5,access:7.5,route_density:7},["Waiting rooms with no cafeteria. Reachable for a small operator.","1 competing option within 400m"],0,"snack, cold drink"],
+  ["s13","Sooner RV Resort","RV park / campground","rv_park",70.1,"B","8712 S Council Rd, Oklahoma City",{traffic:4.5,dwell:8,captivity:9,winnability:7.5,hours:8,access:7.5,route_density:2},["Captive by definition. Seasonal swing is steep.","no store, cafe or drive-thru within 400m","isolated — a stop here costs real drive time"],0,"snack, cold drink"],
+  ["s14","Blue Wave Auto Spa","Car wash","car_wash",69.4,"B","9401 N May Ave, Oklahoma City",{traffic:5.5,dwell:6,captivity:6.3,winnability:8,hours:6.5,access:9,route_density:9},["Short dwell but pure impulse buying, and rent is usually free.","2 competing options within 400m"],0,"cold drink"],
+  ["s15","Willow Creek Assisted Living","Nursing / assisted living","care_home",69.0,"B","3300 NW 63rd St, Oklahoma City",{traffic:5.5,dwell:9,captivity:9,winnability:5.5,hours:8,access:7.5,route_density:5},["Staff plus visiting families, around the clock."],0,"snack, cold drink, coffee"],
+  ["s16","Del City Lanes","Bowling / cinema / arcade","recreation",64.2,"C","4400 SE 29th St, Del City",{traffic:6.5,dwell:8,captivity:3.8,winnability:4.5,hours:6.5,access:8,route_density:6},["They sell concessions themselves — expect a no unless it is a lobby they do not staff.","4 competing food/drink options within 400m — people can just walk out"],0,"cold drink"],
+  ["s17","Reynolds Ford Service","Car dealership","car_dealership",68.3,"B","611 S Broadway, Edmond",{traffic:6,dwell:8,captivity:5.8,winnability:6,hours:6.5,access:8.5,route_density:8},["Service lounges. Many already offer free coffee — sell snacks.","3 competing options within 400m"],0,"snack, cold drink"],
+  ["s18","Chisholm Trail Warehouse","Warehouse / distribution","warehouse",73.5,"B","1201 SW 3rd St, Moore",{traffic:6.5,dwell:9,captivity:9,winnability:6.5,hours:6.5,access:8.5,route_density:4},["Night shifts and dock crews. Drinks move hard in an OKC summer.","no store, cafe or drive-thru within 400m"],0,"snack, cold drink, coffee"],
+  ["s19","Capitol Hill Coin Wash","Laundromat","laundromat",73.1,"B","2410 S Robinson Ave, Oklahoma City",{traffic:6,dwell:9.5,captivity:7.8,winnability:8,hours:6.5,access:9,route_density:8},["90 minutes with nothing to do and a pocket of quarters. Small owners, easy yes.","1 competing option within 400m"],0,"snack, cold drink"],
+  ["s20","Quail Springs Business Park","Office building","office",66.9,"B","14000 N Portland Ave, Oklahoma City",{traffic:7.4,dwell:8.5,captivity:5.8,winnability:5,hours:6.5,access:6.5,route_density:9},["Break rooms. Headcount matters more than square footage — under ~40 people it rarely pays.","6 storeys","3 competing options within 400m"],0,"snack, cold drink, coffee"],
+  ["s21","Mustang Sports Complex","Ballfields / sports complex","sports_complex",68.8,"B","1201 N Mustang Rd, Mustang",{traffic:6,dwell:8.5,captivity:9,winnability:6,hours:6,access:7,route_density:3},["Weekend tournaments spike hard. Outdoor machines need shade.","no store, cafe or drive-thru within 400m"],0,"cold drink"],
+  ["s22","Bethany Tire & Lube","Auto repair / tire shop","auto_repair",71.9,"B","6820 NW 39th Expy, Bethany",{traffic:5.5,dwell:8.5,captivity:7.3,winnability:8,hours:6.5,access:9,route_density:6},["Waiting rooms are the definition of a captive audience.","1 competing option within 400m"],0,"snack, cold drink, coffee"],
+  ["s23","Heartland Precision Works","Manufacturing / plant","manufacturing",76.2,"A","3300 SE 44th St, Oklahoma City",{traffic:7.5,dwell:9.5,captivity:8.3,winnability:6,hours:6.5,access:8,route_density:6},["Shift workers, unpaid short breaks, often nothing within a mile. The classic bread-and-butter vending account.","1 competing option within 400m"],0,"snack, cold drink, coffee, fresh food"],
+  ["s24","Norman Municipal Court","Government office / DMV / courthouse","government",61.8,"C","201 W Gray St, Norman",{traffic:7,dwell:8.5,captivity:8.5,winnability:3,hours:6.5,access:6,route_density:7},["Long lines and long waits, but expect an RFP and state vending-facility rules rather than a handshake."],0,"snack, cold drink"],
+  ["s25","Mercy Regional Hospital","Hospital","hospital",58.4,"C","4300 W Memorial Rd, Oklahoma City",{traffic:9.5,dwell:9.5,captivity:6.8,winnability:1.5,hours:10,access:5,route_density:8},["Superb traffic, almost always locked up by a national contract. Chase the medical office buildings around it instead.","2 competing options within 400m"],1,"snack, cold drink, coffee, fresh food"],
+  ["s26","Moore West Middle School","K-12 school","school",52.1,"D","515 SW 4th St, Moore",{traffic:7.5,dwell:8,captivity:8,winnability:2,hours:6.5,access:5.5,route_density:6},["USDA Smart Snacks limits what you can sell during the day and districts bid the contract. Staff lounges are the realistic ask."],0,"healthy, cold drink"],
+  ["s27","Interstate Truck Plaza","Truck stop / freight yard","truck_stop",59.6,"C","8100 SE 29th St, Midwest City",{traffic:7,dwell:6,captivity:1.4,winnability:4,hours:10,access:9,route_density:5},["High volume, but the C-store inside is your direct competitor.","5 competing food/drink options within 400m — people can just walk out"],2,"cold drink, coffee"],
+  ["s28","Guthrie Feed & Hardware","Hardware / home improvement","hardware",65.3,"C","402 E Oklahoma Ave, Guthrie",{traffic:6.5,dwell:5,captivity:7.2,winnability:5.5,hours:6.5,access:8.5,route_density:3},["Contractor traffic first thing in the morning. Coffee and drinks.","1 competing option within 400m","isolated — a stop here costs real drive time"],0,"cold drink, coffee"]
+].map(([id,name,typeLabel,typeKey,score,grade,address,breakdown,reasons,machines,sell]) =>
+  ({ id, name, typeLabel, typeKey, score, grade, address, breakdown, reasons, machines, sell }));
+
+const LISTINGS = [
+  { fit: 93, title: "Established Vending Route — 34 Machines", why: "matches 'vending route' · in the OKC metro · states a machine count", price: 78500, cash: 42000, machines: 34, where: "Oklahoma City, OK", local: true },
+  { fit: 93, title: "Snack & Soda Route, 11 Accounts", why: "matches 'snack route' · in the OKC metro · discloses revenue", price: 46000, cash: 22500, machines: 18, where: "Norman, OK", local: true },
+  { fit: 71, title: "Micro Market & Vending Operation", why: "matches 'micro market' · elsewhere in Oklahoma", price: 210000, cash: 74000, machines: 62, where: "Tulsa, OK", local: false },
+  { fit: 63, title: "Vending Machine Business — Regional Operator", why: "matches 'vending machine business' · states a machine count", price: 1200000, cash: 310000, machines: 210, where: "Dallas, TX", local: false },
+  { fit: 8, title: "Vending machine parts inventory, lot of 40", why: "looks like it is not a route: 'vending machine parts'", price: 3500, cash: null, machines: null, where: "Tulsa, OK", local: false }
+];
+
+const STAGES = [
+  ["new", "New"], ["queued", "Queued"], ["contacted", "Contacted"],
+  ["following_up", "Following up"], ["interested", "Interested"],
+  ["won", "Won"], ["lost", "Lost"]
+];
+
+const SEED_BOARD = {
+  new: ["s9","s13","s14","s16","s17","s20","s21","s24","s25","s26","s27","s28"],
+  queued: ["s10","s12","s15","s18","s19","s22"],
+  contacted: ["s5","s6","s8"],
+  following_up: ["s2","s23"],
+  interested: ["s1","s3"],
+  won: ["s7"],
+  lost: ["s4","s11"]
+};
+
+/* --------------------------------------------------------------- helpers */
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const gradeClass = (g) => ({ "A+": "g-ap", "A": "g-a", "B": "g-b", "C": "g-c", "D": "g-d" }[g] || "g-d");
+const byId = (id) => SITES.find((s) => s.id === id);
+
+function money(n) {
+  if (n == null) return "—";
+  if (n >= 1e6) return "$" + (n / 1e6).toFixed(2) + "M";
+  if (n >= 1e4) return "$" + Math.round(n / 1e3) + "K";
+  return "$" + Math.round(n).toLocaleString();
+}
+
+/* localStorage can throw outright in some embedding contexts, so every access
+   is guarded and the page renders correctly with nothing stored. */
+function readStore(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) { return fallback; }
+}
+function writeStore(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ }
+}
+
+/* ------------------------------------------------------------- prospects */
+let selectedId = SITES[0].id;
+
+function renderTypeFilter() {
+  const seen = new Map();
+  SITES.forEach((s) => seen.set(s.typeKey, s.typeLabel));
+  const select = $("#f-type");
+  Array.from(seen.entries())
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .forEach(([key, label]) => {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = label;
+      select.appendChild(option);
+    });
+}
+
+function visibleSites() {
+  const min = Number($("#f-score").value);
+  const type = $("#f-type").value;
+  const q = $("#f-q").value.trim().toLowerCase();
+  return SITES
+    .filter((s) => s.score >= min)
+    .filter((s) => !type || s.typeKey === type)
+    .filter((s) => !q || s.name.toLowerCase().includes(q) || s.address.toLowerCase().includes(q))
+    .sort((a, b) => b.score - a.score);
+}
+
+function renderProspects() {
+  const list = visibleSites();
+  const host = $("#p-rows");
+  $("#p-count").textContent = list.length + " of " + SITES.length + " shown";
+  $("#n-prospects").textContent = SITES.length;
+
+  if (!list.length) {
+    host.innerHTML = '<p class="small muted" style="padding:16px">Nothing matches those filters.</p>';
+    $("#p-detail").innerHTML = '<p class="small muted">Loosen the filters to see a prospect.</p>';
+    return;
+  }
+  if (!list.some((s) => s.id === selectedId)) selectedId = list[0].id;
+
+  host.innerHTML = list.map((s) => `
+    <button class="row" role="option" data-id="${esc(s.id)}"
+            aria-current="${s.id === selectedId}" aria-selected="${s.id === selectedId}">
+      <span class="grade ${gradeClass(s.grade)}">${Math.round(s.score)}</span>
+      <span style="min-width:0">
+        <span class="name">${esc(s.name)}</span>
+        <span class="meta">${esc(s.typeLabel)} · ${esc(s.address)}</span>
+      </span>
+    </button>`).join("");
+
+  $$(".row", host).forEach((el) => {
+    el.addEventListener("click", () => { selectedId = el.dataset.id; renderProspects(); });
+  });
+  renderDetail(byId(selectedId));
+}
+
+function renderDetail(s) {
+  if (!s) return;
+  const bars = Object.entries(s.breakdown).map(([key, value]) => `
+    <div class="bar-row">
+      <span>${esc(key.replace(/_/g, " "))}</span>
+      <span class="track"><span style="width:${(value / 10) * 100}%"></span></span>
+      <span class="num">${value.toFixed(1)}</span>
+    </div>`).join("");
+
+  $("#p-detail").innerHTML = `
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
+      <span class="grade ${gradeClass(s.grade)}">${Math.round(s.score)}</span>
+      <span class="pill">${esc(s.typeLabel)}</span>
+    </div>
+    <h3>${esc(s.name)}</h3>
+    <div class="addr">${esc(s.address)}</div>
+    <dl class="kv">
+      <dt>Stock it with</dt><dd>${esc(s.sell)}</dd>
+      <dt>Machines on site</dt><dd>${s.machines || "none mapped"}</dd>
+      <dt>Score</dt><dd class="num">${s.score.toFixed(1)} / 100</dd>
+    </dl>
+    <div>${bars}</div>
+    <ul class="reasons">${s.reasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`;
+}
+
+function renderGradeChart() {
+  const order = ["A+", "A", "B", "C", "D"];
+  const counts = order.map((g) => SITES.filter((s) => s.grade === g).length);
+  const max = Math.max(...counts, 1);
+  $("#grade-chart").innerHTML = order.map((g, i) => `
+    <div class="gradebar">
+      <span class="lab">${g}</span>
+      <span class="track"><span style="width:${(counts[i] / max) * 100}%;background:var(--${
+        { "A+": "g-ap", "A": "g-a", "B": "g-b", "C": "g-c", "D": "g-d" }[g]
+      })"></span></span>
+      <span class="n">${counts[i]}</span>
+    </div>`).join("");
+}
+
+/* -------------------------------------------------------------- pipeline */
+function loadBoard() {
+  const stored = readStore("ml-board", null);
+  if (!stored) return JSON.parse(JSON.stringify(SEED_BOARD));
+  // Drop anything unrecognised, and re-home sites missing from the stored board.
+  const board = {};
+  const placed = new Set();
+  STAGES.forEach(([key]) => {
+    board[key] = (stored[key] || []).filter((id) => {
+      if (!byId(id) || placed.has(id)) return false;
+      placed.add(id);
+      return true;
+    });
+  });
+  SITES.forEach((s) => { if (!placed.has(s.id)) board.new.push(s.id); });
+  return board;
+}
+
+let board = loadBoard();
+let dragId = null;
+
+function renderBoard() {
+  $("#board").innerHTML = STAGES.map(([key, label]) => `
+    <section class="col" data-stage="${key}">
+      <header class="col-head">${esc(label)}<span class="n">${(board[key] || []).length}</span></header>
+      <div class="col-body">
+        ${(board[key] || []).map((id) => {
+          const s = byId(id);
+          if (!s) return "";
+          return `<article class="kcard" draggable="true" data-id="${esc(s.id)}">
+            <div class="top">
+              <span class="grade ${gradeClass(s.grade)}">${Math.round(s.score)}</span>
+              <span class="name">${esc(s.name)}</span>
+            </div>
+            <div class="meta">${esc(s.typeLabel)}</div>
+          </article>`;
+        }).join("") || '<p class="small muted" style="margin:4px 2px">Nothing here</p>'}
+      </div>
+    </section>`).join("");
+  wireBoard();
+}
+
+function wireBoard() {
+  $$("#board .kcard").forEach((card) => {
+    card.addEventListener("dragstart", (e) => {
+      dragId = card.dataset.id;
+      card.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", card.dataset.id);
+    });
+    card.addEventListener("dragend", () => { card.classList.remove("dragging"); dragId = null; });
+  });
+
+  $$("#board .col").forEach((col) => {
+    col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("over"); });
+    col.addEventListener("dragleave", () => col.classList.remove("over"));
+    col.addEventListener("drop", (e) => {
+      e.preventDefault();
+      col.classList.remove("over");
+      const id = dragId || e.dataTransfer.getData("text/plain");
+      if (!id) return;
+      STAGES.forEach(([key]) => { board[key] = (board[key] || []).filter((x) => x !== id); });
+      board[col.dataset.stage].unshift(id);
+      writeStore("ml-board", board);
+      renderBoard();
+      renderToday();
+    });
+  });
+}
+
+/* ----------------------------------------------------------------- today */
+/* Derived from the board rather than a fixed list, so dragging a card in the
+   Pipeline tab changes what shows up here -- the same relationship the real
+   app has. */
+function renderToday() {
+  const host = document.getElementById("today-list");
+  if (!host) return;
+
+  const rows = [];
+  const queued = (board.queued || []).length;
+
+  if (queued) {
+    rows.push(`
+      <div class="today-row">
+        <span class="today-n">${queued}</span>
+        <div class="body">
+          <div class="head">email${queued === 1 ? "" : "s"} ready to go out</div>
+          <div class="sub">Reviewed and scheduled — send whenever you're ready.</div>
+        </div>
+        <button class="btn btn-sm btn-primary" data-goto="outreach">Read them</button>
+      </div>`);
+  }
+
+  (board.interested || []).forEach((id) => {
+    const s = byId(id);
+    if (!s) return;
+    rows.push(`
+      <div class="today-row">
+        <span class="grade ${gradeClass(s.grade)}">${Math.round(s.score)}</span>
+        <div class="body">
+          <div class="head">${esc(s.name)} replied</div>
+          <div class="sub">A warm lead going cold is the expensive one — call them.</div>
+        </div>
+        <button class="btn btn-sm" data-site="${esc(s.id)}">Open</button>
+      </div>`);
+  });
+
+  (board.contacted || []).concat(board.following_up || []).slice(0, 4).forEach((id) => {
+    const s = byId(id);
+    if (!s) return;
+    rows.push(`
+      <div class="today-row">
+        <span class="grade ${gradeClass(s.grade)}">${Math.round(s.score)}</span>
+        <div class="body">
+          <div class="head">${esc(s.name)}</div>
+          <div class="sub">${esc(s.typeLabel)} · follow up · ${esc(s.address.split(",")[0])}</div>
+        </div>
+        <button class="btn btn-sm" data-site="${esc(s.id)}">Open</button>
+      </div>`);
+  });
+
+  const SHOWN = 6;
+  document.getElementById("n-today").textContent = rows.length;
+
+  host.innerHTML = rows.length
+    ? rows.slice(0, SHOWN).join("") +
+      (rows.length > SHOWN
+        ? `<p class="small muted" style="margin:12px 0 0">and ${rows.length - SHOWN} more — see the Pipeline tab.</p>`
+        : "")
+    : `<div class="today-empty">Nothing needs you right now. Drag a card into
+       <strong>Interested</strong> or <strong>Contacted</strong> on the Pipeline tab
+       and it turns up here.</div>`;
+
+  host.querySelectorAll("[data-site]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectedId = btn.dataset.site;
+      showTab("prospects");
+      renderProspects();
+      document.querySelector('#p-prospects [aria-current="true"]')
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+  });
+  host.querySelectorAll("[data-goto]").forEach((btn) => {
+    btn.addEventListener("click", () => showTab(btn.dataset.goto));
+  });
+}
+
+/* -------------------------------------------------------------- outreach */
+const IDENTITY = {
+  business: "Sooner Vending Co.",
+  name: "Mack Medley",
+  phone: "(405) 555-0134",
+  city: "Oklahoma City",
+  commission: "15% of gross sales, paid monthly"
+};
+
+function fitReason(s) {
+  const joined = s.reasons.join(" ").toLowerCase();
+  if (joined.includes("no store")) return "there isn't much else close by for a snack or a cold drink";
+  if (joined.includes("24/7")) return "you're open around the clock";
+  if (joined.includes("rooms") || joined.includes("units")) return "it looks like a good-sized property";
+  if (s.breakdown.dwell >= 8.5) return "people tend to be there a while";
+  return "it looks like a good fit";
+}
+
+function mailsFor(s) {
+  const street = s.address.split(",")[0];
+  return [
+    { when: "Day 0 · sends immediately",
+      subject: `Vending machine for ${s.name}?`,
+      body: `Hi there,
+
+I'm ${IDENTITY.name} with ${IDENTITY.business}, a local vending route here in ${IDENTITY.city}. I came across ${s.name} on ${street} and thought it might be a good fit — ${fitReason(s)}.
+
+Here's how it works, and it's simpler than people expect:
+
+- We install the machine at no cost to you.
+- We stock it, service it, and handle any repairs or refunds.
+- You get ${IDENTITY.commission}.
+- No contract. If it isn't earning its space, we pull it out.
+
+Based on the location I'd start with ${s.sell}.
+
+Worth a five-minute conversation? I'm happy to stop by and take a look at the space — no obligation either way.
+
+Thanks,
+${IDENTITY.name}
+${IDENTITY.business}
+${IDENTITY.phone}` },
+    { when: "Day 4 · short nudge",
+      subject: `Re: Vending machine for ${s.name}?`,
+      body: `Hi there,
+
+Following up on my note from last week about putting a ${s.sell} machine in at ${s.name}.
+
+The short version: no cost to you, we handle stocking and service, you get ${IDENTITY.commission}, and there's no contract.
+
+If it's a no, just say so and I'll leave you alone — I'd rather know than keep emailing.
+
+Thanks,
+${IDENTITY.name}
+${IDENTITY.business}
+${IDENTITY.phone}` },
+    { when: "Day 11 · last note, then it stops",
+      subject: `Closing the loop — vending at ${s.name}`,
+      body: `Hi there,
+
+Last note from me on this, then I'll get out of your inbox.
+
+If a no-cost ${s.sell} machine at ${s.name} is ever worth a look — this year or next — keep my number. Happy to help whenever the timing is better.
+
+Thanks for your time,
+${IDENTITY.name}
+${IDENTITY.business}
+${IDENTITY.phone}` }
+  ];
+}
+
+function renderOutreach() {
+  const site = byId($("#o-site").value) || SITES[0];
+  $("#o-mails").innerHTML = mailsFor(site).map((m, i) => `
+    <div class="mail">
+      <div class="when">${esc(m.when)}</div>
+      <div class="subject">${esc(m.subject)}</div>
+      <div class="body">${esc(m.body)}</div>
+      ${i === 0 ? `<div class="footer-note">
+        Every email also carries your postal address and a plain-English opt-out,
+        added when it sends so it can't be edited out of a draft. That's a legal
+        requirement, so the app treats it as one.
+      </div>` : ""}
+    </div>`).join("");
+}
+
+function fillOutreachPicker() {
+  $("#o-site").innerHTML = SITES
+    .slice()
+    .sort((a, b) => b.score - a.score)
+    .map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`)
+    .join("");
+}
+
+/* ---------------------------------------------------------------- routes */
+function renderRoutes() {
+  $("#r-rows").innerHTML = LISTINGS.map((l) => {
+    const per = l.price && l.machines ? money(l.price / l.machines) : "—";
+    const mult = l.price && l.cash ? (l.price / l.cash).toFixed(1) + "×" : "—";
+    return `<tr>
+      <td class="num"><strong>${l.fit}</strong></td>
+      <td>${esc(l.title)}${l.local ? ' <span class="pill pill-good">metro</span>' : ""}
+        <div class="why">${esc(l.why)}</div></td>
+      <td class="num">${money(l.price)}</td>
+      <td class="num">${money(l.cash)}</td>
+      <td class="num">${l.machines || "—"}</td>
+      <td class="num">${per}</td>
+      <td class="num">${mult}</td>
+      <td>${esc(l.where)}</td>
+    </tr>`;
+  }).join("");
+}
+
+/* ------------------------------------------------------------------ tabs */
+function showTab(name) {
+  $$('.tabbar [role="tab"]').forEach((t) => {
+    const on = t.id === "tab-" + name;
+    t.setAttribute("aria-selected", String(on));
+    $("#" + t.getAttribute("aria-controls")).hidden = !on;
+  });
+  if (name === "pipeline") renderBoard();
+  if (name === "today") renderToday();
+}
+
+function wireTabs() {
+  const tabs = $$('.tabbar [role="tab"]');
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      showTab(tab.id.replace("tab-", ""));
+    });
+    tab.addEventListener("keydown", (e) => {
+      const i = tabs.indexOf(tab);
+      if (e.key === "ArrowRight") tabs[(i + 1) % tabs.length].focus();
+      if (e.key === "ArrowLeft") tabs[(i - 1 + tabs.length) % tabs.length].focus();
+    });
+  });
+}
+
+/* ------------------------------------------------------------------ boot */
+renderTypeFilter();
+renderProspects();
+renderGradeChart();
+renderBoard();
+renderToday();
+fillOutreachPicker();
+renderOutreach();
+renderRoutes();
+wireTabs();
+
+$("#f-score").addEventListener("input", (e) => {
+  $("#f-score-out").textContent = e.target.value;
+  renderProspects();
+});
+$("#f-type").addEventListener("change", renderProspects);
+$("#f-q").addEventListener("input", renderProspects);
+$("#o-site").addEventListener("change", renderOutreach);
+$("#reset-board").addEventListener("click", () => {
+  board = JSON.parse(JSON.stringify(SEED_BOARD));
+  writeStore("ml-board", board);
+  renderBoard();
+  renderToday();
+});
+</script>
