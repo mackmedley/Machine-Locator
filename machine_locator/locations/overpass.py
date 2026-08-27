@@ -204,6 +204,7 @@ def elements_to_sites(elements: Iterable[dict]) -> List[Site]:
                 lon=lon,
                 address=build_address(tags),
                 phone=tags.get("phone", "") or tags.get("contact:phone", ""),
+                email=tags.get("email", "") or tags.get("contact:email", ""),
                 website=tags.get("website", "") or tags.get("contact:website", ""),
                 opening_hours=tags.get("opening_hours", ""),
                 tags=tags,

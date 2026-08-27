@@ -1,19 +1,22 @@
 # Machine Locator
 
-Two jobs, one tool, for a vending operator working the Oklahoma City metro:
+A desktop web app for running a vending route in the Oklahoma City metro. It does
+three jobs:
 
-1. **Find places to put machines.** Pull every plausible host site in the metro
-   from OpenStreetMap, score each one on how likely it is to pay for itself, and
-   hand you a ranked call list with addresses and a map.
-2. **Find routes for sale.** Watch the business-for-sale marketplaces for
-   vending routes coming on the market, pull the numbers out of the ad copy, and
-   flag the ones that are actually local and actually a route.
+1. **Finds places to put machines.** Pulls every plausible host site in the metro
+   from OpenStreetMap, scores each one on how likely it is to pay for itself, and
+   hands you a ranked call list on a map.
+2. **Runs your outreach for you.** Pick prospects, hit one button, and each gets a
+   personalised three-email sequence with follow-ups scheduled and replies handled.
+3. **Watches for routes for sale.** Polls the business-for-sale marketplaces and
+   flags the listings that are genuinely local vending routes.
 
+```bash
+pip install -e .
+mloc app          # opens in your browser — everything is a button from here
 ```
-mloc locations find --territories 4     # rank placement prospects
-mloc routes find                        # hunt for routes on the market
-mloc serve                              # browse both in your browser
-```
+
+![The dashboard](docs/dashboard.png)
 
 ---
 
@@ -24,30 +27,42 @@ git clone https://github.com/mackmedley/machine-locator.git
 cd machine-locator
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
+mloc app
 ```
 
-Python 3.9+. No API keys required -- the location data comes from
-OpenStreetMap's free Overpass API.
+Python 3.9+. No API keys needed to find prospects — the location data comes from
+OpenStreetMap's free Overpass API. To send outreach you connect your own email
+account (see [Settings](#settings-and-the-sending-guardrails)).
+
+`mloc app` starts the server and opens your browser. Leave the terminal window
+open while you use it; Ctrl+C stops it.
+
+---
+
+## The pages
+
+| Page | What it's for |
+|---|---|
+| **Dashboard** | KPIs, grade mix, pipeline funnel, which site types score best, recent activity. Both scan buttons live here. |
+| **Prospects** | Every scored site on a map and in a ranked list. Filter, multi-select, open one for its full scoring breakdown, edit contacts, start outreach. |
+| **Pipeline** | A drag-and-drop board: New → Queued → Contacted → Following up → Interested → Won / Lost. |
+| **Outreach** | The send queue, editable message drafts, your templates and call scripts, and the rules the sender follows. |
+| **Routes for sale** | Listings with price per machine and multiple of cash flow worked out for you. |
+| **Day planner** | Turns your best prospects into an efficient driving run with a Google Maps link and a printable run sheet. |
+| **Settings** | Your business details, mail account, daily cap, do-not-contact list. |
+
+Scans run in the background with a progress bar, so a two-minute Overpass sweep
+doesn't freeze the page. Everything is keyboard-friendly, `/` focuses search, and
+there's a light/dark/system theme toggle.
 
 ---
 
 ## Part 1: finding placement locations
 
-```bash
-mloc locations find
-```
-
-This queries OpenStreetMap for 26 categories of site across the OKC metro
-(city limits plus Edmond, Moore, Norman, Midwest City, Del City, Yukon,
-Bethany and Mustang -- a delivery van does not care about municipal lines),
+Hit **Find prospects**. It queries OpenStreetMap for 26 categories of site across
+the OKC metro (city limits plus Edmond, Moore, Norman, Midwest City, Del City,
+Yukon, Bethany and Mustang — a delivery van doesn't care about municipal lines),
 then scores each one.
-
-```
-  #  Score  Name                       Type                    Address                          Comp  Sell
-  1  80 A   Heartland Manufacturing    Manufacturing / plant   509 W Reno Ave, OKC 73106            0  snack, cold drink, coffee
-  2  80 A   Bubbles Laundromat #7      Laundromat              953 N Penn Ave, Yukon 73099          0  snack, cold drink
-  3  79 A   Cattlemen's Lodge          Hotel / motel           5474 S Air Depot Blvd 73099          1  snack, cold drink, sundries
-```
 
 ### How the score works
 
@@ -59,72 +74,107 @@ be a machine that pays for itself?* Seven components, each 0-10, weighted to a
 |---|---|---|
 | `traffic` | 24% | How many people pass through daily, adjusted by size hints in the map data (hotel rooms, apartment units, building storeys) |
 | `dwell` | 22% | How long a person is stuck there with nothing to do |
-| `captivity` | 16% | How far they are from a cheaper option -- **measured**, by counting every store, cafe, drive-thru and gas station within 400m |
+| `captivity` | 16% | How far they are from a cheaper option — **measured**, by counting every store, cafe, drive-thru and gas station within 400m |
 | `winnability` | 10% | The inverse of how locked-up the category is by national contracts |
 | `hours` | 10% | Whether the machine sells around the clock or only 9-to-5 |
-| `access` | 10% | How easy the site is to service -- parking, ground floor, hours a driver can show up |
-| `route_density` | 8% | How many other prospects sit within 1.5km -- windshield time is most of the cost of a route |
+| `access` | 10% | How easy the site is to service — parking, ground floor, hours a driver can show up |
+| `route_density` | 8% | How many other prospects sit within 1.5km — windshield time is most of the cost of a route |
 
-The weights sum to exactly 1.0, which the test suite asserts.
-
-Then a **saturation penalty** of up to 18 points if OpenStreetMap already shows
-a vending machine on the site.
+The weights sum to exactly 1.0, which the test suite asserts. Then a
+**saturation penalty** of up to 18 points if OpenStreetMap already shows a
+vending machine on the site.
 
 That `winnability` term is the one that makes this useful rather than obvious.
-A hospital scores 10 for traffic and 10 for dwell -- and a one-truck operator
+A hospital scores 10 for traffic and 10 for dwell — and a one-truck operator
 will essentially never win it, because a national contract already has it. The
 scorer knows that, so laundromats and machine shops rise above hospitals and
-schools in the ranking. `mloc locations categories` shows every prior.
+schools in the ranking.
 
-Every score comes with its reasoning:
+Every score comes with its reasoning, visible when you open a prospect:
 
-```bash
-mloc locations show "Cattlemen"
-```
-```
-79.0 / 100  (grade A)   Hotel / motel
-Why:
-  - 24/7 guests who will not drive out for a soda at 11pm.
-  - 210 rooms -- large property
-  - 1 competing option(s) within 400m
-  - open 24/7 -- sells on every shift
-```
+> **79 / 100 — Hotel / motel**
+> - 24/7 guests who will not drive out for a soda at 11pm.
+> - 210 rooms — large property
+> - 1 competing option within 400m
+> - open 24/7 — sells on every shift
 
-### Territories and driving routes
+### Territories, routes and exports
 
-```bash
-mloc locations territories -n 4          # split the metro into 4 service areas
-mloc locations list --territory 2        # work one area at a time
-mloc locations route --top 20 --start 35.4676,-97.5164
-```
+The **Day planner** orders stops into an efficient loop (nearest-neighbour
+seeded, then 2-opt) from your warehouse and back — useful twice, first for a day
+of cold-calling and later as the restocking run. **Print run sheet** gives you
+something for the dashboard of the van; **Open in Google Maps** loads the whole
+route for turn-by-turn.
 
-`route` orders stops into an efficient loop (nearest-neighbour seeded, then
-2-opt) from your warehouse and back. Use it for a day of cold-calling now, and
-as the restocking run once the machines are in.
-
-### Getting the list out of the terminal
-
-```bash
-mloc export sites -f csv     -o prospects.csv        # spreadsheet or CRM
-mloc export sites -f geojson -o prospects.geojson    # pins for Google My Maps
-```
-
-The GeoJSON is colour-coded by grade, so it renders correctly on
-[google.com/mymaps](https://www.google.com/mymaps) or geojson.io with no
-styling work. The CSV includes a clickable Google Maps link per row and a
-plain-English `why` column you can read on a doorstep.
+Export prospects as CSV for a spreadsheet, or as grade-coloured GeoJSON that
+drops straight onto [Google My Maps](https://www.google.com/mymaps).
 
 ---
 
-## Part 2: finding routes for sale
+## Part 2: automated outreach
 
-```bash
-mloc routes find
-mloc routes list --local-only
-mloc routes show 1
-```
+This is the part that saves the most time. Select prospects, hit **Start
+outreach**, and each one is queued a three-message sequence:
 
-Sources are defined in [`machine_locator/routes/sources.yaml`](machine_locator/routes/sources.yaml)
+| When | Message |
+|---|---|
+| Day 0 | Intro email — the offer, personalised to that specific business |
+| Day 4 | Short nudge |
+| Day 11 | Final note, then it stops |
+
+Every message is written and scheduled **up front**, and you see the full text of
+all three before anything is queued. The copy is the actual pitch a vending
+operator makes — the machine is free to the host, you stock and service it, they
+get a cut, no contract — because that is the offer that gets a yes.
+
+Personalisation is per-prospect, not mail-merge-shaped: the email names the
+business, its street, what you'd stock there, and *why* it looked like a fit —
+softened into something you'd actually say out loud. ("There isn't much else
+close by for a snack" rather than the scorer's own "captive audience".)
+
+**Replies stop everything.** Log a reply on a prospect and the rest of its
+sequence is cancelled immediately — moved to *Interested* if it reads positive,
+or suppressed permanently if they asked to be left alone.
+
+You also get a **phone script** and a **walk-in script**, both personalised the
+same way, with objection handling and a "before you leave" checklist. Plenty of
+vending placements are still won by walking in.
+
+### Settings and the sending guardrails
+
+Cold B2B email is lawful in the US under the CAN-SPAM Act, but only if it's done
+properly. Rather than documenting the rules and hoping, they're built in as hard
+gates:
+
+- **Sending is blocked** until your business name, your name and a real physical
+  mailing address are filled in. The postal address is a legal requirement, so
+  it's a hard requirement here.
+- **Every email carries** that postal address and a plain-English opt-out. The
+  footer is added at send time, so it can't be edited out of a draft.
+- **An opt-out is permanent and wide.** "STOP" or anything like it suppresses the
+  address *and its whole domain*, and the list is re-checked at the moment of
+  sending — so a late opt-out still stops an email queued last week.
+- **A daily cap** (default 40) stops you burning your sending domain.
+- **Mail goes through your own account**, so the reputation, the replies and the
+  accountability are yours. Gmail with 2-factor needs an App Password; the
+  settings page tells you that, and guesses your mail server from your address.
+
+Opt-out detection is deliberately careful about the difference between "STOP" and
+"sure, **stop by** Thursday" — suppression is irreversible, and matching a bare
+substring would silently kill your warmest leads.
+
+**Phone and SMS are not automated, on purpose.** Cold automated texting falls
+under the TCPA, which requires prior express consent and carries statutory
+damages per message. You get scripts and click-to-call links for a human to dial.
+
+Use **Preview send** for a dry run — it builds and validates every message and
+connects to nothing.
+
+---
+
+## Part 3: routes for sale
+
+Hit **Check marketplaces** on the *Routes for sale* page. Sources are defined in [`machine_locator/routes/sources.yaml`](machine_locator/routes/sources.yaml)
 -- Craigslist's business-for-sale feed, BizBuySell, BizQuest, BusinessBroker.net,
 BusinessesForSale, UsedVending and the Vending Connection classifieds.
 
@@ -139,15 +189,12 @@ for **fit**:
   `locations guaranteed`) -- not disqualifying, but flagged so you look twice.
 
 Asking price, cash flow, gross revenue and machine count are parsed out of the
-ad copy, so `mloc routes show` can give you price per machine and a multiple of
-cash flow without opening the listing.
+ad copy, so the table shows you **price per machine** and **multiple of cash
+flow** without opening a single listing — the two numbers that tell you whether
+an asking price is sane.
 
 Listings are stored with a stable id and a `first_seen` date that survives
-re-scans, so this works:
-
-```bash
-mloc routes list --new-since-days 7      # what came on the market this week
-```
+re-scans, so "what came on the market this week" is a real question you can ask.
 
 ### The honest part about scraping
 
@@ -155,7 +202,7 @@ Business-for-sale sites do not want to be scraped, and several of them say so.
 This tool takes that seriously:
 
 - **robots.txt is honoured by default.** Craigslist disallows `/search/`, so that
-  source is skipped unless you explicitly pass `--ignore-robots`. That flag
+  source is skipped unless you explicitly opt in. That option
   exists, it is your call, and the tool tells you what you are overriding.
 - **Requests are rate limited per domain** and the User-Agent identifies the tool
   honestly.
@@ -188,26 +235,12 @@ different fixes.
 Every marketplace offers a free saved search with email alerts. Set one up,
 export the results, and import them:
 
-```bash
-mloc routes import ~/Downloads/bizbuysell_alert.csv --source-name bizbuysell
-```
+Use **Import CSV** on the *Routes for sale* page (or
+`mloc routes import ~/Downloads/alert.csv` from the terminal).
 
 Column names are matched loosely -- `Asking Price`, `price` and `List Price` all
 work -- so an unedited marketplace export usually just imports. Imported rows go
 through exactly the same relevance scoring and financial parsing as scraped ones.
-
----
-
-## The browser view
-
-```bash
-mloc serve
-```
-
-A map of every prospect colour-coded by grade, click-through to the full scoring
-breakdown, and a sortable table of route listings with price per machine. It
-reads the same database the CLI writes, so anything you have scanned is already
-there.
 
 ---
 
@@ -242,9 +275,14 @@ numbers. That file is meant to be changed.
 
 ## Command reference
 
+The web app covers everything, but the CLI shares the same database if you'd
+rather script it or work over SSH.
+
 | Command | What it does |
 |---|---|
-| `mloc status` | What is in your database and when it was last refreshed |
+| `mloc app` | **Start the app and open your browser.** The one you'll use. |
+| `mloc serve --port 8080` | Run the server without opening a browser |
+| `mloc status` | What's in your database and when it was last refreshed |
 | `mloc locations find` | Search and score placement prospects |
 | `mloc locations list` | List stored prospects with filters |
 | `mloc locations show <name>` | Full scoring breakdown for one site |
@@ -255,10 +293,9 @@ numbers. That file is meant to be changed.
 | `mloc routes list` | List stored listings with filters |
 | `mloc routes show <n>` | One listing in full, with price per machine |
 | `mloc routes sources` | The configured sources |
-| `mloc routes diagnose` | Why a source is or is not returning results |
+| `mloc routes diagnose` | Why a source is or isn't returning results |
 | `mloc routes import <csv>` | Import a saved-search export |
 | `mloc export sites\|listings` | CSV, GeoJSON or JSON |
-| `mloc serve` | The browser view |
 
 Useful flags: `--category`, `--min-score`, `--territory`, `--grade` on the
 location commands; `--local-only`, `--min-relevance`, `--max-price`,
@@ -266,8 +303,9 @@ location commands; `--local-only`, `--min-relevance`, `--max-price`,
 bypasses the local Overpass cache.
 
 Data lives in `~/.machine-locator/` (override with `--data-dir` or
-`MACHINE_LOCATOR_HOME`). It is a plain SQLite file -- query it directly if you
-want to.
+`MACHINE_LOCATOR_HOME`). It's a plain SQLite file — query it directly if you
+want to. Your SMTP password is stored there too; set
+`MACHINE_LOCATOR_SMTP_PASSWORD` instead if you'd rather it never touch disk.
 
 ---
 
@@ -278,30 +316,51 @@ pip install -e ".[dev]"
 pytest
 ```
 
-118 tests, no network access required: Overpass, HTTP and robots.txt are all
-faked at the boundary, and the scrapers run against HTML fixtures -- including a
+217 tests, no network access required. Overpass, SMTP, HTTP and robots.txt are
+all faked at the boundary; the scrapers run against HTML fixtures — including a
 "the site got redesigned" fixture that proves the heuristic fallback works.
+The web layer is tested through Flask's test client, covering every page, the
+outreach gates, opt-out handling, and the ordering guarantees the UI depends on.
+
+Architecture:
+
+```
+machine_locator/
+  locations/    Overpass client, category priors, the scoring model
+  routes/       Listing sources (YAML-configured), relevance filtering
+  outreach/     Templates, compliance gates, SMTP sender, sequences
+  web/          Flask app + the browser UI (no build step — plain CSS and JS)
+  jobs.py       Background job runner for scans and sends
+  db.py         SQLite storage, migrated in place on upgrade
+```
+
+There's no bundler, no `npm install`, and no framework. The UI is hand-written
+CSS and vanilla JS so that `mloc app` just works from a fresh clone.
 
 ---
 
 ## Verification status
 
 The offline logic is verified end to end: the full search → score → cluster →
-route → export → serve path was exercised against a seeded Overpass cache, and
-the web UI was rendered and screenshotted.
+route → outreach → export path was exercised against a seeded Overpass cache,
+and every page was rendered and screenshotted in both light and dark themes.
 
 **What could not be verified:** the machine this was built on has outbound
-network access blocked by policy, so no live request to Overpass or to any
-listing site was ever made. That means:
+network access blocked by policy, so no live request to Overpass, to any listing
+site, or to a real SMTP server was ever made. That means:
 
-- The **Overpass query syntax** is standard and the parsing is tested, but the
-  first live `mloc locations find` will be the first real API call.
+- The **Overpass query syntax** is standard and the parsing is tested, but your
+  first scan will be the first real API call.
 - The **listing source URLs and CSS selectors** in `sources.yaml` are marked
   `verify: true` where they need a browser check. Run `mloc routes diagnose`
-  first -- it will tell you exactly which sources need a URL or selector fix,
-  and the heuristic fallback means most will return something regardless.
-
-Neither affects the CSV import path, which needs no network at all.
+  first — it tells you exactly which sources need a fix.
+- The **SMTP sending path** is tested against a fake server, so the message
+  construction, error handling and compliance footer are all verified, but the
+  first real send is untested. Use **Test connection** in Settings, then
+  **Preview send**, before you send to a real prospect.
+- The **map** needs internet for Leaflet and OpenStreetMap tiles. Every page
+  degrades gracefully without it — you'll see the ranked list and a note instead
+  of a broken panel.
 
 ---
 

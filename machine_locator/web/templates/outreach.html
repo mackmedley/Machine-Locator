@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Outreach — Machine Locator{% endblock %}
+{% block heading %}Outreach{% endblock %}
+{% block topbar_actions %}
+  <button class="btn" id="btn-dry-run">Preview send</button>
+  <button class="btn btn-primary" id="btn-send">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+    Send what's due
+  </button>
+{% endblock %}
+
+{% block body %}
+<div id="gate-banner"></div>
+
+<div class="grid grid-4" style="margin-bottom:16px">
+  <div class="stat"><div class="stat-label">Due now</div><div class="stat-value" id="s-due">—</div><div class="stat-sub">ready to send</div></div>
+  <div class="stat"><div class="stat-label">Queued</div><div class="stat-value" id="s-queued">—</div><div class="stat-sub">scheduled ahead</div></div>
+  <div class="stat"><div class="stat-label">Sent</div><div class="stat-value" id="s-sent">—</div><div class="stat-sub" id="s-today">&nbsp;</div></div>
+  <div class="stat"><div class="stat-label">Failed</div><div class="stat-value" id="s-failed">—</div><div class="stat-sub">need a look</div></div>
+</div>
+
+<div class="tabs">
+  <button data-tab="queue" class="active">Queue</button>
+  <button data-tab="templates">Templates &amp; scripts</button>
+  <button data-tab="rules">How sending works</button>
+</div>
+
+<section data-panel="queue">
+  <div class="filters">
+    <label>Show
+      <select id="f-status">
+        <option value="">Everything</option>
+        <option value="queued" selected>Queued</option>
+        <option value="sent">Sent</option>
+        <option value="failed">Failed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </label>
+    <label class="inline-field"><input type="checkbox" id="f-due"> Only what's due now</label>
+    <div class="spacer"></div>
+    <span class="muted small" id="queue-count"></span>
+  </div>
+  <div class="card"><div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>Prospect</th><th>To</th><th>Subject</th><th>Step</th>
+      <th>When</th><th>Status</th><th></th>
+    </tr></thead>
+    <tbody id="queue-rows"></tbody>
+  </table></div><div id="queue-empty"></div></div>
+</section>
+
+<section data-panel="templates" hidden>
+  <div class="banner banner-info">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+    <div class="spacer">
+      Use <code>{business_name}</code>-style fields and they're filled in per prospect.
+      Available: {% for key in merge_fields %}<code>{{ '{' }}{{ key }}{{ '}' }}</code>{% if not loop.last %} {% endif %}{% endfor %}
+    </div>
+  </div>
+  <div id="template-list" class="grid grid-2"></div>
+</section>
+
+<section data-panel="rules" hidden>
+  <div class="grid grid-2">
+    <div class="card"><div class="card-head"><h2>What this tool does automatically</h2></div>
+      <div class="card-body">
+        <p>Pick prospects, hit <strong>Start outreach</strong>, and each one is queued a three-message sequence:</p>
+        <dl class="kv">
+          <dt>Day 0</dt><dd>Intro email — the offer, personalised to that business</dd>
+          <dt>Day 4</dt><dd>Short nudge</dd>
+          <dt>Day 11</dt><dd>Final note, then it stops</dd>
+        </dl>
+        <p class="muted small">
+          Every message is written and scheduled up front, so you can read exactly what
+          will go out before anything sends. Logging a reply cancels the rest of that
+          sequence immediately.
+        </p>
+      </div>
+    </div>
+    <div class="card"><div class="card-head"><h2>The guardrails</h2></div>
+      <div class="card-body">
+        <p>Cold B2B email is legal in the US under CAN-SPAM when it's done properly, so the rules are built in rather than left to you:</p>
+        <ul style="margin:0;padding-left:19px;color:var(--text-2);font-size:13px;line-height:1.75">
+          <li>Sending is blocked until your business name, address and a real mailing address are filled in.</li>
+          <li>Every email carries your postal address and a plain-English opt-out. It can't be edited out.</li>
+          <li>"STOP" or anything like it suppresses that address <em>and its whole domain</em>, permanently.</li>
+          <li>A daily cap (default 40) stops you burning your sending domain.</li>
+          <li>Mail goes through <em>your</em> mail account, so replies come to you.</li>
+        </ul>
+        <p class="muted small" style="margin-top:12px">
+          Texting isn't automated here on purpose — cold automated SMS falls under the TCPA,
+          which needs prior consent. Use the call and walk-in scripts instead.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/outreach.js') }}"></script>{% endblock %}

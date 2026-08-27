@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Pipeline — Machine Locator{% endblock %}
+{% block heading %}Pipeline{% endblock %}
+{% block topbar_actions %}
+  <a class="btn" href="{{ url_for('prospects_page') }}">Add prospects</a>
+{% endblock %}
+
+{% block body %}
+<div class="banner banner-info">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+  <div class="spacer">Drag a card between columns to move a prospect along. Moving one to <strong>Won</strong> or <strong>Lost</strong> automatically cancels any follow-up emails still queued for it.</div>
+</div>
+<div class="board" id="board"><p class="muted">Loading…</p></div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/pipeline.js') }}"></script>{% endblock %}

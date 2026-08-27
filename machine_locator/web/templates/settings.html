@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Settings — Machine Locator{% endblock %}
+{% block heading %}Settings{% endblock %}
+
+{% block body %}
+{% if missing %}
+<div class="banner banner-warn">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+  <div class="spacer">
+    <strong>Outreach is switched off until these are filled in</strong>
+    {{ missing | join(', ') }}
+  </div>
+</div>
+{% elif smtp_configured %}
+<div class="banner banner-info">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 6L9 17l-5-5"/></svg>
+  <div class="spacer">
+    <strong>Ready to send</strong>
+    {{ gate.sent_today }} of {{ gate.daily_cap }} sent today.
+  </div>
+</div>
+{% endif %}
+
+<form id="settings-form">
+<div class="grid grid-2">
+
+  <div class="card">
+    <div class="card-head"><h2>Your business</h2></div>
+    <div class="card-body">
+      <p class="muted small" style="margin-bottom:14px">
+        This is what recipients see, and what goes in the footer of every email.
+      </p>
+      <label class="field"><span class="lbl">Business name *</span>
+        <input type="text" name="business_name" value="{{ stored.business_name or '' }}" placeholder="Sooner Vending Co."></label>
+      <label class="field"><span class="lbl">Your name *</span>
+        <input type="text" name="sender_name" value="{{ stored.sender_name or '' }}" placeholder="Mack Medley"></label>
+      <label class="field"><span class="lbl">Physical mailing address *</span>
+        <input type="text" name="postal_address" value="{{ stored.postal_address or '' }}" placeholder="123 NW 23rd St, Oklahoma City, OK 73106">
+        <span class="help">Required by law in every commercial email. A PO box is fine.</span></label>
+      <label class="field"><span class="lbl">Phone</span>
+        <input type="text" name="business_phone" value="{{ stored.business_phone or '' }}" placeholder="(405) 555-0134"></label>
+      <label class="field"><span class="lbl">Website</span>
+        <input type="text" name="business_website" value="{{ stored.business_website or '' }}"></label>
+      <label class="field"><span class="lbl">What the host gets</span>
+        <input type="text" name="commission_line" value="{{ stored.commission_line or 'a share of the sales' }}" placeholder="15% of gross sales, paid monthly">
+        <span class="help">Drops straight into your email copy — be specific and it converts better.</span></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Sending mail</h2></div>
+    <div class="card-body">
+      <p class="muted small" style="margin-bottom:14px">
+        Mail goes out through your own account so replies come back to you.
+        Gmail with 2-factor needs an <strong>App Password</strong>, not your normal one.
+      </p>
+      <label class="field"><span class="lbl">From address *</span>
+        <input type="email" name="sender_email" id="sender-email" value="{{ stored.sender_email or '' }}" placeholder="you@yourbusiness.com"></label>
+      <label class="field"><span class="lbl">Reply-to (optional)</span>
+        <input type="email" name="reply_to" value="{{ stored.reply_to or '' }}"></label>
+      <div class="grid" style="grid-template-columns:2fr 1fr;gap:10px">
+        <label class="field"><span class="lbl">Mail server</span>
+          <input type="text" name="smtp_host" id="smtp-host" value="{{ stored.smtp_host or '' }}" placeholder="smtp.gmail.com"></label>
+        <label class="field"><span class="lbl">Port</span>
+          <input type="number" name="smtp_port" id="smtp-port" value="{{ stored.smtp_port or 587 }}"></label>
+      </div>
+      <label class="field"><span class="lbl">Username</span>
+        <input type="text" name="smtp_username" value="{{ stored.smtp_username or '' }}"></label>
+      <label class="field"><span class="lbl">Password{% if smtp_configured %} <span class="muted">(saved — leave blank to keep)</span>{% endif %}</span>
+        <input type="password" name="smtp_password" placeholder="{{ '••••••••••' if smtp_configured else 'App password' }}">
+        <span class="help">Stored in your local database. Set <code>MACHINE_LOCATOR_SMTP_PASSWORD</code> instead if you'd rather it never touch disk.</span></label>
+      <label class="field"><span class="lbl">Security</span>
+        <select name="smtp_security">
+          <option value="starttls" {{ 'selected' if (stored.smtp_security or 'starttls') == 'starttls' }}>STARTTLS (port 587)</option>
+          <option value="ssl" {{ 'selected' if stored.smtp_security == 'ssl' }}>SSL/TLS (port 465)</option>
+        </select></label>
+      <button type="button" class="btn" id="btn-test">Test connection</button>
+      <span id="test-result" class="small" style="margin-left:10px"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Sending limits</h2></div>
+    <div class="card-body">
+      <label class="field"><span class="lbl">Maximum emails per day</span>
+        <input type="number" name="daily_send_cap" value="{{ stored.daily_send_cap or 40 }}" min="1" max="500">
+        <span class="help">
+          Keep this modest. A hundred identical emails in an hour is how a sending
+          domain gets flagged as spam, and you only get one reputation.
+        </span></label>
+      <label class="field"><span class="lbl">Your city</span>
+        <input type="text" name="city" value="{{ stored.city or city }}"></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Do-not-contact list</h2>
+      <div class="spacer"></div>
+      <span class="badge">{{ suppression | length }}</span>
+    </div>
+    <div class="card-body">
+      <p class="muted small" style="margin-bottom:12px">
+        Anyone who opts out lands here automatically, along with their whole domain.
+        Entries are checked again at the moment of sending, so a late opt-out still stops
+        a queued email.
+      </p>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input type="text" id="sup-value" placeholder="email@example.com or example.com">
+        <button type="button" class="btn" id="btn-suppress">Add</button>
+      </div>
+      <div id="sup-list">
+        {% if suppression %}
+        <table class="data"><tbody>
+          {% for entry in suppression %}
+          <tr><td>{{ entry.value }}</td><td class="muted small">{{ entry.reason }}</td>
+          <td style="width:1%"><button type="button" class="btn btn-sm btn-ghost" data-unsuppress="{{ entry.value }}">Remove</button></td></tr>
+          {% endfor %}
+        </tbody></table>
+        {% else %}<p class="muted small">Nobody yet.</p>{% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="position:sticky;bottom:0;padding:14px 0;background:linear-gradient(transparent,var(--bg) 30%);display:flex;gap:10px;align-items:center">
+  <button type="submit" class="btn btn-primary btn-lg">Save settings</button>
+  <span class="muted small" id="save-hint"></span>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/settings.js') }}"></script>{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Day planner — Machine Locator{% endblock %}
+{% block heading %}Day planner{% endblock %}
+{% block topbar_actions %}
+  <button class="btn" onclick="window.print()">Print run sheet</button>
+  <a class="btn btn-primary" id="btn-maps" target="_blank" rel="noopener" href="#">Open in Google Maps</a>
+{% endblock %}
+
+{% block body %}
+<div class="filters">
+  <label>Stops <input type="number" id="f-top" value="12" min="2" max="24" style="width:76px"></label>
+  <label>Min score
+    <input type="range" id="f-score" min="0" max="100" step="5" value="65" style="width:120px">
+    <output id="f-score-out" class="num" style="min-width:24px">65</output>
+  </label>
+  <label>From stage
+    <select id="f-stage">
+      <option value="">Best-scoring prospects</option>
+      {% for key, label in stages %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Start from <input type="text" id="f-start" placeholder="lat,lon — your warehouse" style="width:190px"></label>
+  <button class="btn btn-sm btn-primary" id="btn-plan">Plan route</button>
+  <div class="spacer"></div>
+  <span class="muted small" id="summary"></span>
+</div>
+
+<div class="split">
+  <div class="list-pane">
+    <div class="list-head"><strong id="stop-count">No route yet</strong><div class="spacer"></div><span class="muted small" id="distance"></span></div>
+    <div class="result-list" id="stops"></div>
+  </div>
+  <div class="map-pane"><div id="map"></div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.MAP_CENTER = {{ center|tojson }};</script>
+<script src="{{ url_for('static', filename='js/planner.js') }}"></script>
+{% endblock %}

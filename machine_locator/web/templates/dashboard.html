@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Machine Locator{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-primary" id="btn-scan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    Find prospects
+  </button>
+  <button class="btn" id="btn-routes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 7h18v13H3zM8 7V4h8v3"/></svg>
+    Check for routes
+  </button>
+{% endblock %}
+
+{% block body %}
+{% if stats.sites == 0 %}
+<div class="card" style="margin-bottom:16px">
+  <div class="card-body empty">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+    </div>
+    <h3>Let's find you some locations</h3>
+    <p>
+      One click searches {{ city }} for every business that could host a machine —
+      plants, laundromats, gyms, hotels, auto shops — then scores and ranks them.
+      It takes a couple of minutes.
+    </p>
+    <button class="btn btn-primary btn-lg" id="btn-scan-empty">Scan {{ city }} now</button>
+  </div>
+</div>
+{% endif %}
+
+<div class="grid grid-4" style="margin-bottom:16px">
+  <div class="stat accent">
+    <div class="stat-label">Prospects scored</div>
+    <div class="stat-value" id="kpi-sites">—</div>
+    <div class="stat-sub" id="kpi-sites-sub">&nbsp;</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Worth calling first</div>
+    <div class="stat-value" id="kpi-agrade">—</div>
+    <div class="stat-sub">graded A or better</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">In your pipeline</div>
+    <div class="stat-value" id="kpi-pipeline">—</div>
+    <div class="stat-sub" id="kpi-pipeline-sub">&nbsp;</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Routes for sale</div>
+    <div class="stat-value" id="kpi-listings">—</div>
+    <div class="stat-sub" id="kpi-listings-sub">&nbsp;</div>
+  </div>
+</div>
+
+<div class="grid grid-2" style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-head">
+      <h2>Prospects by grade</h2>
+      <div class="spacer"></div>
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('prospects_page') }}">Browse</a>
+    </div>
+    <div class="card-body">
+      <div class="chart" id="chart-grades"></div>
+      <p class="muted small" style="margin:10px 0 0">
+        A+ is best. Grade blends foot traffic, dwell time, nearby competition
+        and how winnable the account realistically is.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Sales pipeline</h2>
+      <div class="spacer"></div>
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('pipeline_page') }}">Open board</a>
+    </div>
+    <div class="card-body"><div class="chart" id="chart-pipeline"></div></div>
+  </div>
+</div>
+
+<div class="grid grid-2" style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-head">
+      <h2>Outreach sent</h2>
+      <div class="spacer"></div>
+      <span class="badge" id="badge-due">—</span>
+    </div>
+    <div class="card-body">
+      <div class="chart" id="chart-outreach"></div>
+      <div class="legend"><span class="key"><span class="swatch" style="background:var(--brand)"></span>emails sent per day</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Best site types</h2>
+      <div class="spacer"></div>
+      <span class="muted small">average score</span>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap"><table class="data" id="category-table">
+        <thead><tr><th>Type</th><th class="num">Avg score</th><th class="num">Found</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <p class="muted small" style="margin:0;padding:12px 16px">
+        Ranked by how well each type scores, not how many exist. Chase the top of
+        this list first.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Recent activity</h2>
+    <div class="spacer"></div>
+    <span class="muted small">Every call, note, email and stage change</span>
+  </div>
+  <div class="card-body" id="activity-feed">
+    <p class="muted small">Loading…</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.ML_CITY = {{ city|tojson }};</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

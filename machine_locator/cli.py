@@ -631,20 +631,57 @@ def export_cmd(
         console.print("[dim]Import it at google.com/mymaps or drag it onto geojson.io.[/dim]")
 
 
-@main.command("serve")
-@click.option("--host", default="127.0.0.1")
-@click.option("--port", default=5000)
-@click.option("--debug", is_flag=True)
-@click.pass_context
-def serve_cmd(ctx: click.Context, host: str, port: int, debug: bool) -> None:
-    """Open the map and listing browser in your browser."""
+def _serve(ctx: click.Context, host: str, port: int, debug: bool, open_browser: bool) -> None:
     from .web.app import create_app
 
     settings = get_settings(ctx)
     settings.ensure_dirs()
     app = create_app(settings)
-    console.print(f"[green]Machine Locator running at http://{host}:{port}[/green]")
-    app.run(host=host, port=port, debug=debug)
+    url = f"http://{host}:{port}"
+
+    console.print(Panel(
+        f"[bold green]Machine Locator is running[/bold green]\n\n"
+        f"Open [bold]{url}[/bold] in your browser.\n"
+        f"Press Ctrl+C here to stop it.",
+        expand=False,
+    ))
+
+    if open_browser:
+        # Give the server a moment to bind before the browser asks for the page.
+        import threading
+        import webbrowser
+
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+
+    # The reloader spawns a second process, which would open the browser twice
+    # and start duplicate background jobs.
+    app.run(host=host, port=port, debug=debug, use_reloader=False)
+
+
+@main.command("app")
+@click.option("--port", default=5000, help="Port to run on.")
+@click.option("--host", default="127.0.0.1")
+@click.option("--no-open", is_flag=True, help="Don't open a browser window.")
+@click.pass_context
+def app_cmd(ctx: click.Context, port: int, host: str, no_open: bool) -> None:
+    """Start Machine Locator and open it in your browser.
+
+    This is the one command you need -- everything the other commands do has a
+    button in the web app.
+    """
+    _serve(ctx, host, port, debug=False, open_browser=not no_open)
+
+
+@main.command("serve")
+@click.option("--host", default="127.0.0.1")
+@click.option("--port", default=5000)
+@click.option("--debug", is_flag=True)
+@click.option("--open/--no-open", "open_browser", default=False,
+              help="Open a browser window once the server is up.")
+@click.pass_context
+def serve_cmd(ctx: click.Context, host: str, port: int, debug: bool, open_browser: bool) -> None:
+    """Run the web app without opening a browser (for remote or scripted use)."""
+    _serve(ctx, host, port, debug, open_browser)
 
 
 if __name__ == "__main__":  # pragma: no cover

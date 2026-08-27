@@ -4,31 +4,98 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Machine Locator{% endblock %}</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='2' fill='%230f1216'/><path d='M3 3h10v10H3z' fill='none' stroke='%234da3ff' stroke-width='1.2'/><path d='M3 6.5h10M3 10h10M6.5 3v10M10 3v10' stroke='%234da3ff' stroke-width='.8'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%232a78d6'/><rect x='3.2' y='2.8' width='9.6' height='10.4' rx='1.2' fill='none' stroke='white' stroke-width='1.1'/><path d='M3.2 6.2h9.6M3.2 9.6h9.6M8 2.8v10.4' stroke='white' stroke-width='.85'/></svg>">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
-  <header class="topbar">
+<div class="app">
+  <aside class="sidebar">
     <div class="brand">
-      <span class="logo">▦</span>
-      <div>
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+          <rect x="4" y="2.5" width="16" height="19" rx="2"/>
+          <path d="M4 9h16M4 15h16M12 2.5v19"/>
+        </svg>
+      </div>
+      <div class="brand-text">
         <strong>Machine Locator</strong>
-        <small>{{ city }}</small>
+        <span>{{ city }}</span>
       </div>
     </div>
-    <nav>
-      <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' }}">Placement map</a>
-      <a href="{{ url_for('listings_page') }}" class="{{ 'active' if request.endpoint == 'listings_page' }}">Routes for sale</a>
+
+    <nav class="nav">
+      <div class="nav-label">Find</div>
+      <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a href="{{ url_for('prospects_page') }}" class="{{ 'active' if request.endpoint == 'prospects_page' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Prospects
+        <span class="pill">{{ '{:,}'.format(stats.sites) }}</span>
+      </a>
+      <a href="{{ url_for('listings_page') }}" class="{{ 'active' if request.endpoint == 'listings_page' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18v13H3zM8 7V4h8v3"/><path d="M3 12h18"/></svg>
+        Routes for sale
+        <span class="pill">{{ '{:,}'.format(stats.listings) }}</span>
+      </a>
+
+      <div class="nav-label">Work</div>
+      <a href="{{ url_for('pipeline_page') }}" class="{{ 'active' if request.endpoint == 'pipeline_page' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg>
+        Pipeline
+      </a>
+      <a href="{{ url_for('outreach_page') }}" class="{{ 'active' if request.endpoint == 'outreach_page' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+        Outreach
+      </a>
+      <a href="{{ url_for('planner_page') }}" class="{{ 'active' if request.endpoint == 'planner_page' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 010 6H9a3 3 0 000 6h6.5"/></svg>
+        Day planner
+      </a>
+
+      <div class="nav-label">Setup</div>
+      <a href="{{ url_for('settings_page') }}" class="{{ 'active' if request.endpoint == 'settings_page' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.6 1.6 0 008 19.4a1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H2a2 2 0 110-4h.1A1.6 1.6 0 004.6 8a1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H9a1.6 1.6 0 001-1.5V2a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V9a1.6 1.6 0 001.5 1H22a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/></svg>
+        Settings
+        {% if not setup_complete %}<span class="pill" style="background:var(--warning);color:#3a2f10">!</span>{% endif %}
+      </a>
     </nav>
-    <div class="stats">
-      <span title="Scored placement prospects">{{ '{:,}'.format(stats.sites) }} sites</span>
-      <span title="Graded A or better">{{ '{:,}'.format(stats.sites_a_grade) }} A-grade</span>
-      <span title="Route listings tracked">{{ '{:,}'.format(stats.listings) }} listings</span>
+
+    <div class="sidebar-foot">
+      <button class="btn btn-ghost" id="theme-toggle" style="width:100%;justify-content:flex-start">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+        Theme
+      </button>
     </div>
-  </header>
-  {% block body %}{% endblock %}
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  {% block scripts %}{% endblock %}
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      {% block topbar %}<h1>{% block heading %}{% endblock %}</h1>{% endblock %}
+      <div class="spacer"></div>
+      {% block topbar_actions %}{% endblock %}
+    </header>
+    <div class="page">
+      {% if not setup_complete and request.endpoint != 'settings_page' %}
+      <div class="banner banner-warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+        <div class="spacer">
+          <strong>Finish setup before sending outreach</strong>
+          Your business details and mail server aren't configured yet. Everything else works;
+          sending is blocked until they are.
+        </div>
+        <a class="btn btn-sm" href="{{ url_for('settings_page') }}">Open settings</a>
+      </div>
+      {% endif %}
+      {% block body %}{% endblock %}
+    </div>
+  </div>
+</div>
+<div class="toasts"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/core.js') }}"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

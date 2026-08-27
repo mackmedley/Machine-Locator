@@ -86,7 +86,103 @@ CREATE TABLE IF NOT EXISTS site_notes (
     note TEXT,
     updated_at TEXT
 );
+
+-- Where each prospect sits in your sales pipeline.
+CREATE TABLE IF NOT EXISTS pipeline (
+    site_id TEXT PRIMARY KEY,
+    stage TEXT NOT NULL DEFAULT 'new',
+    contact_name TEXT,
+    contact_email TEXT,
+    contact_phone TEXT,
+    next_action TEXT,
+    next_action_at TEXT,
+    tags TEXT,
+    updated_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pipeline_stage ON pipeline(stage);
+CREATE INDEX IF NOT EXISTS idx_pipeline_next ON pipeline(next_action_at);
+
+-- An append-only history of everything that happened with a prospect.
+CREATE TABLE IF NOT EXISTS activities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    title TEXT,
+    body TEXT,
+    created_at TEXT,
+    meta TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_activities_site ON activities(site_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_activities_time ON activities(created_at DESC);
+
+-- Outreach messages: drafted, queued, sent, failed.
+CREATE TABLE IF NOT EXISTS outreach_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id TEXT NOT NULL,
+    channel TEXT NOT NULL DEFAULT 'email',
+    template_key TEXT,
+    sequence_key TEXT,
+    step INTEGER DEFAULT 0,
+    to_address TEXT,
+    subject TEXT,
+    body TEXT,
+    status TEXT NOT NULL DEFAULT 'draft',
+    scheduled_at TEXT,
+    sent_at TEXT,
+    error TEXT,
+    created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_outreach_status ON outreach_messages(status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_outreach_site ON outreach_messages(site_id, id DESC);
+
+CREATE TABLE IF NOT EXISTS message_templates (
+    key TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    channel TEXT NOT NULL DEFAULT 'email',
+    sequence_key TEXT,
+    step INTEGER DEFAULT 0,
+    delay_days INTEGER DEFAULT 0,
+    subject TEXT,
+    body TEXT,
+    builtin INTEGER DEFAULT 0,
+    updated_at TEXT
+);
+
+-- Addresses and sites that must never be contacted again.
+CREATE TABLE IF NOT EXISTS suppression (
+    value TEXT PRIMARY KEY,
+    kind TEXT NOT NULL DEFAULT 'email',
+    reason TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TEXT
+);
+
+-- Long-running work started from the web UI, polled for progress.
+CREATE TABLE IF NOT EXISTS jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'queued',
+    progress INTEGER DEFAULT 0,
+    total INTEGER DEFAULT 0,
+    message TEXT,
+    error TEXT,
+    result TEXT,
+    started_at TEXT,
+    finished_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_jobs_recent ON jobs(id DESC);
 """
+
+# Columns added after the first release. Each is applied only if missing, so an
+# existing database upgrades in place instead of needing a rebuild.
+MIGRATIONS = (
+    ("sites", "email", "TEXT DEFAULT ''"),
+)
 
 _JSON_SITE_FIELDS = ("tags", "breakdown", "reasons")
 _JSON_LISTING_FIELDS = ("relevance_reasons", "raw")
@@ -99,7 +195,18 @@ class Database:
         self.conn = sqlite3.connect(str(self.path))
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self) -> None:
+        """Add columns introduced after a database was first created."""
+        for table, column, decl in MIGRATIONS:
+            existing = {
+                row["name"]
+                for row in self.conn.execute(f"PRAGMA table_info({table})")
+            }
+            if column not in existing:
+                self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
     def close(self) -> None:
         self.conn.close()
@@ -302,3 +409,480 @@ def _row_to_listing(row: sqlite3.Row) -> RouteListing:
     data["raw"] = _loads(data.get("raw"), {})
     data["is_local"] = bool(data.get("is_local"))
     return RouteListing(**data)
+
+
+# ---------------------------------------------------------------------------
+# CRM, outreach and job storage
+#
+# These live as a mixin-style extension on Database so the original site and
+# listing methods above stay readable. Everything here is keyed on site_id.
+# ---------------------------------------------------------------------------
+
+PIPELINE_STAGES = (
+    ("new", "New"),
+    ("queued", "Queued"),
+    ("contacted", "Contacted"),
+    ("following_up", "Following up"),
+    ("interested", "Interested"),
+    ("won", "Won"),
+    ("lost", "Lost"),
+)
+STAGE_KEYS = tuple(key for key, _ in PIPELINE_STAGES)
+
+
+def _extend(cls):
+    """Attach the methods below to Database."""
+    def decorator(func):
+        setattr(cls, func.__name__, func)
+        return func
+    return decorator
+
+
+# -------------------------------------------------------------- app settings
+
+@_extend(Database)
+def get_setting(self, key: str, default: str = "") -> str:
+    row = self.conn.execute(
+        "SELECT value FROM app_settings WHERE key = ?", (key,)
+    ).fetchone()
+    return row["value"] if row and row["value"] is not None else default
+
+
+@_extend(Database)
+def set_setting(self, key: str, value: str) -> None:
+    self.conn.execute(
+        "INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)",
+        (key, value, utcnow()),
+    )
+    self.conn.commit()
+
+
+@_extend(Database)
+def all_settings(self) -> Dict[str, str]:
+    return {r["key"]: r["value"] for r in self.conn.execute("SELECT * FROM app_settings")}
+
+
+# ------------------------------------------------------------------ pipeline
+
+@_extend(Database)
+def get_pipeline(self, site_id: str) -> Dict[str, Any]:
+    row = self.conn.execute(
+        "SELECT * FROM pipeline WHERE site_id = ?", (site_id,)
+    ).fetchone()
+    if not row:
+        return {"site_id": site_id, "stage": "new", "tags": []}
+    data = dict(row)
+    data["tags"] = _loads(data.get("tags"), [])
+    return data
+
+
+@_extend(Database)
+def update_pipeline(self, site_id: str, **fields: Any) -> Dict[str, Any]:
+    """Create or update a prospect's pipeline row. Unknown keys are ignored."""
+    allowed = {
+        "stage", "contact_name", "contact_email", "contact_phone",
+        "next_action", "next_action_at", "tags",
+    }
+    current = self.get_pipeline(site_id)
+    merged = {k: current.get(k) for k in allowed}
+    for key, value in fields.items():
+        if key in allowed:
+            merged[key] = value
+    if not merged.get("stage"):
+        merged["stage"] = "new"
+    merged["tags"] = json.dumps(merged.get("tags") or [])
+    merged["site_id"] = site_id
+    merged["updated_at"] = utcnow()
+    columns = ", ".join(merged)
+    placeholders = ", ".join(f":{k}" for k in merged)
+    self.conn.execute(
+        f"INSERT OR REPLACE INTO pipeline ({columns}) VALUES ({placeholders})", merged
+    )
+    self.conn.commit()
+    return self.get_pipeline(site_id)
+
+
+@_extend(Database)
+def pipeline_counts(self) -> Dict[str, int]:
+    """How many prospects sit in each stage, including the implicit 'new'."""
+    counts = {key: 0 for key in STAGE_KEYS}
+    for row in self.conn.execute("SELECT stage, COUNT(*) n FROM pipeline GROUP BY stage"):
+        if row["stage"] in counts:
+            counts[row["stage"]] = row["n"]
+    total_sites = self.conn.execute("SELECT COUNT(*) c FROM sites").fetchone()["c"]
+    tracked = self.conn.execute("SELECT COUNT(*) c FROM pipeline").fetchone()["c"]
+    counts["new"] += max(0, total_sites - tracked)
+    return counts
+
+
+@_extend(Database)
+def sites_in_stage(self, stage: str, limit: int = 200) -> List[Dict[str, Any]]:
+    """Sites in one stage, joined with their pipeline row.
+
+    'new' is special: it includes every scored site that has no pipeline row
+    yet, so a fresh scan populates the board without a migration step.
+    """
+    if stage == "new":
+        sql = """
+            SELECT s.*, p.stage, p.contact_name, p.contact_email, p.contact_phone,
+                   p.next_action, p.next_action_at, p.tags AS ptags
+            FROM sites s LEFT JOIN pipeline p ON p.site_id = s.id
+            WHERE p.site_id IS NULL OR p.stage = 'new'
+            ORDER BY s.score DESC LIMIT ?
+        """
+        params: List[Any] = [limit]
+    else:
+        sql = """
+            SELECT s.*, p.stage, p.contact_name, p.contact_email, p.contact_phone,
+                   p.next_action, p.next_action_at, p.tags AS ptags
+            FROM pipeline p JOIN sites s ON s.id = p.site_id
+            WHERE p.stage = ?
+            ORDER BY s.score DESC LIMIT ?
+        """
+        params = [stage, limit]
+    return [_row_to_card(r) for r in self.conn.execute(sql, params)]
+
+
+def _row_to_card(row: sqlite3.Row) -> Dict[str, Any]:
+    data = dict(row)
+    data["tags"] = _loads(data.pop("ptags", None), [])
+    data["reasons"] = _loads(data.get("reasons"), [])
+    data["breakdown"] = _loads(data.get("breakdown"), {})
+    data.pop("tags_1", None)
+    data["stage"] = data.get("stage") or "new"
+    return data
+
+
+# ---------------------------------------------------------------- activities
+
+@_extend(Database)
+def add_activity(
+    self, site_id: str, kind: str, title: str = "", body: str = "",
+    meta: Optional[Dict[str, Any]] = None,
+) -> None:
+    self.conn.execute(
+        "INSERT INTO activities (site_id, kind, title, body, created_at, meta) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (site_id, kind, title, body, utcnow(), json.dumps(meta or {})),
+    )
+    self.conn.commit()
+
+
+@_extend(Database)
+def site_activities(self, site_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    rows = self.conn.execute(
+        "SELECT * FROM activities WHERE site_id = ? ORDER BY id DESC LIMIT ?",
+        (site_id, limit),
+    )
+    out = []
+    for row in rows:
+        data = dict(row)
+        data["meta"] = _loads(data.get("meta"), {})
+        out.append(data)
+    return out
+
+
+@_extend(Database)
+def recent_activities(self, limit: int = 30) -> List[Dict[str, Any]]:
+    rows = self.conn.execute(
+        "SELECT a.*, s.name AS site_name FROM activities a "
+        "LEFT JOIN sites s ON s.id = a.site_id ORDER BY a.id DESC LIMIT ?",
+        (limit,),
+    )
+    out = []
+    for row in rows:
+        data = dict(row)
+        data["meta"] = _loads(data.get("meta"), {})
+        out.append(data)
+    return out
+
+
+# ------------------------------------------------------------------ outreach
+
+@_extend(Database)
+def add_message(self, message: Dict[str, Any]) -> int:
+    payload = {
+        "site_id": message["site_id"],
+        "channel": message.get("channel", "email"),
+        "template_key": message.get("template_key", ""),
+        "sequence_key": message.get("sequence_key", ""),
+        "step": int(message.get("step", 0)),
+        "to_address": message.get("to_address", ""),
+        "subject": message.get("subject", ""),
+        "body": message.get("body", ""),
+        "status": message.get("status", "draft"),
+        "scheduled_at": message.get("scheduled_at", ""),
+        "sent_at": message.get("sent_at", ""),
+        "error": message.get("error", ""),
+        "created_at": utcnow(),
+    }
+    columns = ", ".join(payload)
+    placeholders = ", ".join(f":{k}" for k in payload)
+    cur = self.conn.execute(
+        f"INSERT INTO outreach_messages ({columns}) VALUES ({placeholders})", payload
+    )
+    self.conn.commit()
+    return int(cur.lastrowid)
+
+
+@_extend(Database)
+def update_message(self, message_id: int, **fields: Any) -> None:
+    allowed = {"status", "sent_at", "error", "scheduled_at", "subject", "body", "to_address"}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return
+    assignments = ", ".join(f"{k} = :{k}" for k in updates)
+    updates["id"] = message_id
+    self.conn.execute(f"UPDATE outreach_messages SET {assignments} WHERE id = :id", updates)
+    self.conn.commit()
+
+
+@_extend(Database)
+def get_message(self, message_id: int) -> Optional[Dict[str, Any]]:
+    row = self.conn.execute(
+        "SELECT m.*, s.name AS site_name FROM outreach_messages m "
+        "LEFT JOIN sites s ON s.id = m.site_id WHERE m.id = ?",
+        (message_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+@_extend(Database)
+def query_messages(
+    self, status: Optional[str] = None, site_id: Optional[str] = None,
+    due_only: bool = False, limit: int = 200,
+) -> List[Dict[str, Any]]:
+    sql = ("SELECT m.*, s.name AS site_name, s.address AS site_address "
+           "FROM outreach_messages m LEFT JOIN sites s ON s.id = m.site_id WHERE 1=1")
+    params: List[Any] = []
+    if status:
+        sql += " AND m.status = ?"
+        params.append(status)
+    if site_id:
+        sql += " AND m.site_id = ?"
+        params.append(site_id)
+    if due_only:
+        sql += " AND (m.scheduled_at = '' OR m.scheduled_at IS NULL OR m.scheduled_at <= ?)"
+        params.append(utcnow())
+    # For a queue, the useful order is "what goes out next"; for history it is
+    # "what happened last".
+    if status == "queued":
+        sql += " ORDER BY m.scheduled_at ASC, m.id ASC LIMIT ?"
+    else:
+        sql += " ORDER BY m.id DESC LIMIT ?"
+    params.append(limit)
+    return [dict(r) for r in self.conn.execute(sql, params)]
+
+
+@_extend(Database)
+def messages_sent_since(self, iso_time: str) -> int:
+    row = self.conn.execute(
+        "SELECT COUNT(*) c FROM outreach_messages WHERE status = 'sent' AND sent_at >= ?",
+        (iso_time,),
+    ).fetchone()
+    return int(row["c"])
+
+
+@_extend(Database)
+def outreach_daily_counts(self, days: int = 30) -> List[Dict[str, Any]]:
+    """Sent-per-day, for the dashboard trend line."""
+    rows = self.conn.execute(
+        "SELECT substr(sent_at, 1, 10) AS day, COUNT(*) AS n "
+        "FROM outreach_messages WHERE status = 'sent' AND sent_at != '' "
+        "GROUP BY day ORDER BY day DESC LIMIT ?",
+        (days,),
+    )
+    return [dict(r) for r in rows][::-1]
+
+
+@_extend(Database)
+def has_been_contacted(self, site_id: str) -> bool:
+    row = self.conn.execute(
+        "SELECT 1 FROM outreach_messages WHERE site_id = ? AND status IN ('sent','queued') LIMIT 1",
+        (site_id,),
+    ).fetchone()
+    return row is not None
+
+
+# --------------------------------------------------------------- suppression
+
+@_extend(Database)
+def suppress(self, value: str, kind: str = "email", reason: str = "") -> None:
+    self.conn.execute(
+        "INSERT OR REPLACE INTO suppression (value, kind, reason, created_at) "
+        "VALUES (?, ?, ?, ?)",
+        (value.strip().lower(), kind, reason, utcnow()),
+    )
+    self.conn.commit()
+
+
+@_extend(Database)
+def unsuppress(self, value: str) -> None:
+    self.conn.execute("DELETE FROM suppression WHERE value = ?", (value.strip().lower(),))
+    self.conn.commit()
+
+
+@_extend(Database)
+def suppression_list(self) -> List[Dict[str, Any]]:
+    return [dict(r) for r in self.conn.execute(
+        "SELECT * FROM suppression ORDER BY created_at DESC"
+    )]
+
+
+@_extend(Database)
+def is_suppressed(self, email: str = "", site_id: str = "") -> bool:
+    """True if this address, its domain, or this site is on the do-not-contact list."""
+    candidates = []
+    if email:
+        address = email.strip().lower()
+        candidates.append(address)
+        if "@" in address:
+            candidates.append(address.split("@", 1)[1])
+    if site_id:
+        candidates.append(site_id.strip().lower())
+    if not candidates:
+        return False
+    marks = ", ".join("?" for _ in candidates)
+    row = self.conn.execute(
+        f"SELECT 1 FROM suppression WHERE value IN ({marks}) LIMIT 1", candidates
+    ).fetchone()
+    return row is not None
+
+
+# ----------------------------------------------------------------- templates
+
+@_extend(Database)
+def upsert_template(self, template: Dict[str, Any]) -> None:
+    payload = {
+        "key": template["key"],
+        "name": template.get("name", template["key"]),
+        "channel": template.get("channel", "email"),
+        "sequence_key": template.get("sequence_key", ""),
+        "step": int(template.get("step", 0)),
+        "delay_days": int(template.get("delay_days", 0)),
+        "subject": template.get("subject", ""),
+        "body": template.get("body", ""),
+        "builtin": 1 if template.get("builtin") else 0,
+        "updated_at": utcnow(),
+    }
+    columns = ", ".join(payload)
+    placeholders = ", ".join(f":{k}" for k in payload)
+    self.conn.execute(
+        f"INSERT OR REPLACE INTO message_templates ({columns}) VALUES ({placeholders})",
+        payload,
+    )
+    self.conn.commit()
+
+
+@_extend(Database)
+def get_template(self, key: str) -> Optional[Dict[str, Any]]:
+    row = self.conn.execute(
+        "SELECT * FROM message_templates WHERE key = ?", (key,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+@_extend(Database)
+def list_templates(self, channel: Optional[str] = None) -> List[Dict[str, Any]]:
+    sql = "SELECT * FROM message_templates"
+    params: List[Any] = []
+    if channel:
+        sql += " WHERE channel = ?"
+        params.append(channel)
+    # The email sequence is the main flow, so it leads; standalone scripts
+    # (which carry no sequence_key) come after it.
+    sql += " ORDER BY (sequence_key = '') ASC, sequence_key, step, name"
+    return [dict(r) for r in self.conn.execute(sql, params)]
+
+
+@_extend(Database)
+def delete_template(self, key: str) -> None:
+    self.conn.execute("DELETE FROM message_templates WHERE key = ? AND builtin = 0", (key,))
+    self.conn.commit()
+
+
+# ---------------------------------------------------------------------- jobs
+
+@_extend(Database)
+def create_job(self, kind: str, message: str = "") -> int:
+    cur = self.conn.execute(
+        "INSERT INTO jobs (kind, status, message, started_at) VALUES (?, 'queued', ?, ?)",
+        (kind, message, utcnow()),
+    )
+    self.conn.commit()
+    return int(cur.lastrowid)
+
+
+@_extend(Database)
+def update_job(self, job_id: int, **fields: Any) -> None:
+    allowed = {"status", "progress", "total", "message", "error", "result", "finished_at"}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return
+    if isinstance(updates.get("result"), (dict, list)):
+        updates["result"] = json.dumps(updates["result"])
+    assignments = ", ".join(f"{k} = :{k}" for k in updates)
+    updates["id"] = job_id
+    self.conn.execute(f"UPDATE jobs SET {assignments} WHERE id = :id", updates)
+    self.conn.commit()
+
+
+@_extend(Database)
+def get_job(self, job_id: int) -> Optional[Dict[str, Any]]:
+    row = self.conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    if not row:
+        return None
+    data = dict(row)
+    data["result"] = _loads(data.get("result"), {})
+    return data
+
+
+@_extend(Database)
+def recent_jobs(self, limit: int = 10) -> List[Dict[str, Any]]:
+    rows = self.conn.execute("SELECT * FROM jobs ORDER BY id DESC LIMIT ?", (limit,))
+    out = []
+    for row in rows:
+        data = dict(row)
+        data["result"] = _loads(data.get("result"), {})
+        out.append(data)
+    return out
+
+
+@_extend(Database)
+def active_job(self) -> Optional[Dict[str, Any]]:
+    row = self.conn.execute(
+        "SELECT * FROM jobs WHERE status IN ('queued','running') ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    if not row:
+        return None
+    data = dict(row)
+    data["result"] = _loads(data.get("result"), {})
+    return data
+
+
+# ------------------------------------------------------------- dashboard agg
+
+@_extend(Database)
+def grade_counts(self) -> Dict[str, int]:
+    counts = {g: 0 for g in ("A+", "A", "B", "C", "D")}
+    for row in self.conn.execute(
+        "SELECT grade, COUNT(*) n FROM sites WHERE grade != '' GROUP BY grade"
+    ):
+        if row["grade"] in counts:
+            counts[row["grade"]] = row["n"]
+    return counts
+
+
+@_extend(Database)
+def outreach_stats(self) -> Dict[str, int]:
+    def count(where: str, params: tuple = ()) -> int:
+        return int(self.conn.execute(
+            f"SELECT COUNT(*) c FROM outreach_messages WHERE {where}", params
+        ).fetchone()["c"])
+
+    return {
+        "draft": count("status = 'draft'"),
+        "queued": count("status = 'queued'"),
+        "sent": count("status = 'sent'"),
+        "failed": count("status = 'failed'"),
+    }

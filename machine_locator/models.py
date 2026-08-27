@@ -24,6 +24,7 @@ class Site:
     lon: float
     address: str = ""
     phone: str = ""
+    email: str = ""
     website: str = ""
     opening_hours: str = ""
     tags: Dict[str, str] = field(default_factory=dict)

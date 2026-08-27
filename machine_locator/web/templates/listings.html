@@ -1,32 +1,38 @@
 {% extends "base.html" %}
-{% block title %}Routes for sale -- Machine Locator{% endblock %}
+{% block title %}Routes for sale — Machine Locator{% endblock %}
+{% block heading %}Routes for sale{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-primary" id="btn-find">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    Check marketplaces
+  </button>
+  <button class="btn" id="btn-import">Import CSV</button>
+  <a class="btn" href="/download/listings.csv">Export</a>
+{% endblock %}
+
 {% block body %}
-<div class="listings-page">
-  <div class="filters row">
-    <label><input type="checkbox" id="local-only" checked> OKC metro only</label>
-    <label>Minimum fit
-      <input type="range" id="min-relevance" min="0" max="100" value="40" step="5">
-      <output id="min-relevance-out">40</output>
-    </label>
-    <label>Max asking price
-      <input type="number" id="max-price" placeholder="any" step="5000" min="0">
-    </label>
-    <span class="hint" id="listing-count"></span>
-  </div>
-  <table class="listings">
-    <thead>
-      <tr>
-        <th>Fit</th><th>Listing</th><th>Asking</th><th>Cash flow</th>
-        <th>Machines</th><th>$/machine</th><th>Where</th><th>Source</th><th>First seen</th>
-      </tr>
-    </thead>
-    <tbody id="listing-rows"></tbody>
-  </table>
-  <p class="hint empty" id="listing-empty" hidden>
-    Nothing stored yet. Run <code>mloc routes find</code> in your terminal, then reload.
-  </p>
+<div class="filters">
+  <label class="inline-field"><input type="checkbox" id="f-local" checked> OKC metro only</label>
+  <label>Min fit
+    <input type="range" id="f-rel" min="0" max="100" step="5" value="40" style="width:120px">
+    <output id="f-rel-out" class="num" style="min-width:24px">40</output>
+  </label>
+  <label>Max asking <input type="number" id="f-price" placeholder="any" step="5000" min="0" style="width:120px"></label>
+  <div class="spacer"></div>
+  <span class="muted small" id="count"></span>
+</div>
+
+<div class="card">
+  <div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>Fit</th><th>Listing</th><th class="num">Asking</th><th class="num">Cash flow</th>
+      <th class="num">Machines</th><th class="num">$/machine</th><th class="num">Multiple</th>
+      <th>Where</th><th>Source</th><th>Seen</th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+  <div id="empty-state"></div>
 </div>
 {% endblock %}
-{% block scripts %}
-<script src="{{ url_for('static', filename='listings.js') }}"></script>
-{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/listings.js') }}"></script>{% endblock %}
