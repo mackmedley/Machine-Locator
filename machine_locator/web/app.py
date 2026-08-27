@@ -25,10 +25,12 @@ from ..locations.scoring import machine_recommendation
 from ..models import utcnow
 from ..outreach import sequences as seq
 from ..outreach.compliance import SenderIdentity, check_send_gate, recipient_problem
+from ..outreach.inbox import ImapConfig, check_replies, fetch_raw_messages, InboxError
 from ..outreach.sender import SmtpConfig, test_connection
 from ..outreach.templates import (
     MERGE_FIELDS, build_context, install_builtins, render, sequence_steps,
 )
+from . import auth
 
 STAGE_LABELS = dict(PIPELINE_STAGES)
 
@@ -50,10 +52,16 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
     def db() -> Database:
         return Database(settings.db_path)
 
+    # Password protection, active only when MACHINE_LOCATOR_PASSWORD is set.
+    auth.install(app, db)
+
     def identity_and_smtp(database: Database):
         stored = database.all_settings()
         stored.setdefault("city", settings.city)
         return SenderIdentity.from_settings(stored), SmtpConfig.from_settings(stored)
+
+    def imap_config(database: Database) -> ImapConfig:
+        return ImapConfig.from_settings(database.all_settings())
 
     def shell(database: Database) -> Dict[str, Any]:
         """Context every page needs for the chrome."""
@@ -64,6 +72,7 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
             "active_job": database.active_job(),
             "setup_complete": identity.is_complete and smtp.is_configured,
             "stages": PIPELINE_STAGES,
+            "auth_enabled": app.config.get("AUTH_ENABLED", False),
         }
 
     # ------------------------------------------------------------------ pages
@@ -119,6 +128,7 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
                 stored=stored,
                 missing=identity.missing_fields(),
                 smtp_configured=smtp.is_configured,
+                imap_configured=imap_config(database).is_configured,
                 gate=gate,
                 suppression=database.suppression_list(),
                 **shell(database),
@@ -153,6 +163,22 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
                 "categories": categories,
                 "activities": database.recent_activities(12),
                 "due_today": len(database.query_messages(status="queued", due_only=True, limit=500)),
+            })
+
+    @app.route("/api/today")
+    def api_today() -> Any:
+        """Everything that needs a human today, in one call."""
+        with db() as database:
+            identity, smtp = identity_and_smtp(database)
+            gate = check_send_gate(database, identity, smtp.is_configured)
+            due_mail = database.query_messages(status="queued", due_only=True, limit=200)
+            return jsonify({
+                "due_emails": len(due_mail),
+                "actions": database.due_actions(),
+                "replies": database.awaiting_reply_followup(),
+                "failed": database.outreach_stats().get("failed", 0),
+                "can_send": gate.allowed,
+                "send_blocked_because": gate.reasons,
             })
 
     # ------------------------------------------------------------------- jobs
@@ -231,6 +257,36 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
             }
 
         return _start("send-queue", job, "Sending outreach...")
+
+    @app.route("/api/jobs/check-replies", methods=["POST"])
+    def api_job_check_replies() -> Any:
+        payload = request.get_json(silent=True) or {}
+        days = max(1, min(120, int(payload.get("days") or 30)))
+
+        def job(database: Database, report) -> Dict[str, Any]:
+            identity, _ = identity_and_smtp(database)
+            result = check_replies(
+                database, imap_config(database), identity,
+                since_days=days, progress=lambda msg: report(msg),
+            )
+            if result.error:
+                raise RuntimeError(result.error)
+            found = len(result.replies)
+            return {
+                "summary": (f"{found} repl{'y' if found == 1 else 'ies'} found"
+                            f" ({result.opt_outs} opted out)" if found
+                            else "No new replies"),
+                "found": found,
+                "opt_outs": result.opt_outs,
+                "scanned": result.scanned,
+                "replies": [
+                    {"site": r.site_name, "from": r.from_address,
+                     "opted_out": r.opted_out, "body": r.body[:280]}
+                    for r in result.replies[:50]
+                ],
+            }
+
+        return _start("check-replies", job, "Checking your mailbox...")
 
     @app.route("/api/jobs/<int:job_id>")
     def api_job(job_id: int) -> Any:
@@ -476,12 +532,13 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
             if problem:
                 return jsonify({"error": problem}), 400
             try:
-                send_email(smtp, identity, message["to_address"],
-                           message["subject"], message["body"])
+                sent_id = send_email(smtp, identity, message["to_address"],
+                                     message["subject"], message["body"])
             except SendError as exc:
                 database.update_message(message_id, status="failed", error=str(exc))
                 return jsonify({"error": str(exc)}), 502
-            database.update_message(message_id, status="sent", sent_at=utcnow(), error="")
+            database.update_message(message_id, status="sent", sent_at=utcnow(),
+                                    message_id=sent_id, error="")
             database.add_activity(
                 message["site_id"], "email_sent", f"Sent: {message['subject']}",
                 message["body"][:500], {"to": message["to_address"]},
@@ -631,11 +688,13 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
         with db() as database:
             if request.method == "GET":
                 stored = dict(database.all_settings())
-                stored.pop("smtp_password", None)  # never echo the password back
+                # Never echo a secret back to the browser.
+                for secret in ("smtp_password", "imap_password", "session_secret"):
+                    stored.pop(secret, None)
                 return jsonify(stored)
             payload = request.get_json(silent=True) or {}
             for key, value in payload.items():
-                if key == "smtp_password" and not value:
+                if key in ("smtp_password", "imap_password") and not value:
                     continue  # blank means "leave the saved one alone"
                 database.set_setting(str(key), str(value))
             identity, smtp = identity_and_smtp(database)
@@ -651,6 +710,24 @@ def create_app(settings: Optional[Settings] = None) -> Flask:
             _, smtp = identity_and_smtp(database)
         ok, message = test_connection(smtp)
         return jsonify({"ok": ok, "message": message})
+
+    @app.route("/api/settings/test-imap", methods=["POST"])
+    def api_test_imap() -> Any:
+        """Open the mailbox and read one message, so a wrong setting shows up
+        here rather than as a silent no-op later."""
+        with db() as database:
+            config = imap_config(database)
+        if not config.is_configured:
+            return jsonify({"ok": False,
+                            "message": "Fill in the mail server, username and password first."})
+        try:
+            messages = fetch_raw_messages(config, since_days=3)
+        except InboxError as exc:
+            return jsonify({"ok": False, "message": str(exc)})
+        return jsonify({
+            "ok": True,
+            "message": f"Connected. {len(messages)} message(s) in the last three days.",
+        })
 
     @app.route("/api/suppression", methods=["GET", "POST"])
     def api_suppression() -> Any:

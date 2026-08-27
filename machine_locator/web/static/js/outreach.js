@@ -212,6 +212,30 @@
   document.getElementById("btn-send").onclick = function () {
     ML.jobs.start("/api/jobs/send-queue", { dry_run: false }, load);
   };
+  document.getElementById("btn-replies").onclick = function () {
+    ML.jobs.start("/api/jobs/check-replies", { days: 30 }, function (job) {
+      load();
+      var replies = (job.result || {}).replies || [];
+      if (!replies.length) return;
+      ML.drawer.open(
+        "<div class='card'><div class='card-head'><h2>" + replies.length +
+          " repl" + (replies.length === 1 ? "y" : "ies") + " found</h2>" +
+          "<div class='spacer'></div><button class='icon-btn' data-close>&times;</button></div>" +
+        "<div class='card-body'>" +
+          "<p class='muted small'>Each one's sequence has been stopped. Opt-outs are " +
+          "suppressed permanently; the rest moved to <strong>Interested</strong>.</p>" +
+          replies.map(function (r) {
+            return "<div class='preview-mail'>" +
+              "<div class='when'>" + ML.esc(r.from) +
+                (r.opted_out ? " · <span style='color:var(--critical)'>opted out</span>"
+                             : " · <span style='color:var(--good)'>interested</span>") + "</div>" +
+              "<div class='subject'>" + ML.esc(r.site) + "</div>" +
+              "<div class='body'>" + ML.esc(r.body || "(no text)") + "</div></div>";
+          }).join("") +
+        "</div></div>", { centered: true });
+    });
+  };
+
   document.getElementById("btn-dry-run").onclick = function () {
     ML.jobs.start("/api/jobs/send-queue", { dry_run: true }, function (job) {
       ML.toast("Dry run: " + (job.result || {}).summary, "info");

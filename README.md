@@ -58,11 +58,36 @@ Your data is saved as you go.
 
 ---
 
+## Running it somewhere other than your own computer
+
+You don't have to. The launcher runs it locally, which is simpler and free, and
+your data stays on your machine.
+
+If you want to reach it from your phone or the van, **[DEPLOY.md](DEPLOY.md)**
+covers Render (one blueprint click), Docker, and anywhere else. A `Dockerfile`,
+`Procfile` and `render.yaml` are all in the repo.
+
+One thing worth knowing before you do: the database holds your email password,
+your prospect list and a queue of mail scheduled to go out under your name. So
+the app **refuses to start on a public address without a password**, rather than
+starting with a warning nobody reads:
+
+```
+$ mloc serve --host 0.0.0.0
+Error: Refusing to listen on 0.0.0.0 without a password.
+```
+
+Set `MACHINE_LOCATOR_PASSWORD` and it starts, with a login screen in front of it.
+Locally there's no password and no login — an app on `127.0.0.1` is already only
+reachable by whoever is sitting at the machine.
+
+---
+
 ## The pages
 
 | Page | What it's for |
 |---|---|
-| **Dashboard** | KPIs, grade mix, pipeline funnel, which site types score best, recent activity. Both scan buttons live here. |
+| **Dashboard** | A **Today** list of what needs a human right now — replies waiting, calls due, emails ready to send — then KPIs, grade mix, pipeline funnel, which site types score best, and recent activity. Both scan buttons live here. |
 | **Prospects** | Every scored site on a map and in a ranked list. Filter, multi-select, open one for its full scoring breakdown, edit contacts, start outreach. |
 | **Pipeline** | A drag-and-drop board: New → Queued → Contacted → Following up → Interested → Won / Lost. |
 | **Outreach** | The send queue, editable message drafts, your templates and call scripts, and the rules the sender follows. |
@@ -151,9 +176,20 @@ business, its street, what you'd stock there, and *why* it looked like a fit —
 softened into something you'd actually say out loud. ("There isn't much else
 close by for a snack" rather than the scorer's own "captive audience".)
 
-**Replies stop everything.** Log a reply on a prospect and the rest of its
-sequence is cancelled immediately — moved to *Interested* if it reads positive,
-or suppressed permanently if they asked to be left alone.
+**Replies stop everything, and it notices them by itself.** Connect your mailbox
+in Settings and press **Check for replies**: it reads your inbox over IMAP,
+matches each reply to the email it answers, and cancels the rest of that
+sequence on the spot — moved to *Interested* if it reads positive, or suppressed
+permanently if they asked to be left alone. You can still log a reply by hand.
+
+Matching is done twice over: on the `In-Reply-To` header against the Message-ID
+recorded when the mail went out, and — because plenty of clients drop that
+header — on the sender's address against the last thing you sent them. The
+quoted original is stripped before classifying, which matters more than it
+sounds: your own opt-out footer contains the word "STOP", so reading the whole
+quoted blob would mark every reply as an opt-out.
+
+It only ever reads. Nothing in your mailbox is marked, moved or deleted.
 
 You also get a **phone script** and a **walk-in script**, both personalised the
 same way, with objection handling and a "before you leave" checklist. Plenty of
@@ -301,6 +337,7 @@ rather script it or work over SSH.
 |---|---|
 | `mloc app` | **Start the app and open your browser.** The one you'll use. |
 | `mloc serve --port 8080` | Run the server without opening a browser |
+| `mloc serve --host 0.0.0.0` | Serve publicly — requires `MACHINE_LOCATOR_PASSWORD` |
 | `mloc status` | What's in your database and when it was last refreshed |
 | `mloc locations find` | Search and score placement prospects |
 | `mloc locations list` | List stored prospects with filters |
@@ -335,7 +372,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-217 tests, no network access required. Overpass, SMTP, HTTP and robots.txt are
+265 tests, no network access required. Overpass, SMTP, HTTP and robots.txt are
 all faked at the boundary; the scrapers run against HTML fixtures — including a
 "the site got redesigned" fixture that proves the heuristic fallback works.
 The web layer is tested through Flask's test client, covering every page, the
@@ -347,8 +384,8 @@ Architecture:
 machine_locator/
   locations/    Overpass client, category priors, the scoring model
   routes/       Listing sources (YAML-configured), relevance filtering
-  outreach/     Templates, compliance gates, SMTP sender, sequences
-  web/          Flask app + the browser UI (no build step — plain CSS and JS)
+  outreach/     Templates, compliance gates, SMTP sender, sequences, IMAP replies
+  web/          Flask app, password gate, and the browser UI (no build step)
   jobs.py       Background job runner for scans and sends
   db.py         SQLite storage, migrated in place on upgrade
 ```
@@ -377,6 +414,10 @@ site, or to a real SMTP server was ever made. That means:
   construction, error handling and compliance footer are all verified, but the
   first real send is untested. Use **Test connection** in Settings, then
   **Preview send**, before you send to a real prospect.
+- The **IMAP reply path** is likewise tested against constructed emails rather
+  than a live mailbox: matching, quote-stripping and opt-out classification are
+  all covered, but the first real connection is untested. **Test mailbox** in
+  Settings checks it before you rely on it.
 - The **map** needs internet for Leaflet and OpenStreetMap tiles. Every page
   degrades gracefully without it — you'll see the ranked list and a note instead
   of a broken panel.

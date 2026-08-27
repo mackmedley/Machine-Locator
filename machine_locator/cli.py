@@ -636,6 +636,13 @@ def _serve(
     open_browser: bool, friendly: bool = False,
 ) -> None:
     from .web.app import create_app
+    from .web.auth import PublicBindWithoutPassword, auth_enabled, check_bind_is_safe
+
+    # Refuse to expose an unprotected instance, rather than warn about it.
+    try:
+        check_bind_is_safe(host)
+    except PublicBindWithoutPassword as exc:
+        raise click.ClickException(str(exc))
 
     settings = get_settings(ctx)
     settings.ensure_dirs()
@@ -657,10 +664,14 @@ def _serve(
             title="Ready", expand=False,
         ))
     else:
+        lock = ("\n\n[dim]Password protection is on.[/dim]"
+                if auth_enabled() else
+                "\n\n[dim]No password set -- fine on this machine, but set\n"
+                "MACHINE_LOCATOR_PASSWORD before exposing it anywhere.[/dim]")
         console.print(Panel(
             f"[bold green]Machine Locator is running[/bold green]\n\n"
             f"Open [bold]{url}[/bold] in your browser.\n"
-            f"Press Ctrl+C here to stop it.",
+            f"Press Ctrl+C here to stop it.{lock}",
             expand=False,
         ))
 

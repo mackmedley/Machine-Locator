@@ -197,15 +197,18 @@ def process_queue(
             continue
 
         try:
-            outcome = send_email(
+            sent_id = send_email(
                 smtp, identity, to_address,
                 message.get("subject", ""), message.get("body", ""),
                 dry_run=dry_run,
             )
+            outcome = "dry run -- not sent" if dry_run else "sent"
             db.update_message(
                 message["id"],
                 status="sent" if not dry_run else "queued",
                 sent_at=utcnow() if not dry_run else "",
+                # Recorded so an incoming reply can be threaded back to it.
+                message_id=sent_id if not dry_run else "",
                 error="",
             )
             if not dry_run:

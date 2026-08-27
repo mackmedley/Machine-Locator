@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in — Machine Locator</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%232a78d6'/><rect x='3.2' y='2.8' width='9.6' height='10.4' rx='1.2' fill='none' stroke='white' stroke-width='1.1'/><path d='M3.2 6.2h9.6M3.2 9.6h9.6M8 2.8v10.4' stroke='white' stroke-width='.85'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="signin-page">
+  <main class="signin">
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+        <rect x="4" y="2.5" width="16" height="19" rx="2"/>
+        <path d="M4 9h16M4 15h16M12 2.5v19"/>
+      </svg>
+    </div>
+    <h1>Machine Locator</h1>
+    <p class="muted small">This instance is password protected.</p>
+
+    {% if wait %}
+      <div class="banner banner-warn" style="text-align:left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <div class="spacer">
+          <strong>Too many attempts</strong>
+          Try again in {{ (wait // 60) + 1 }} minute{{ '' if wait < 60 else 's' }}.
+        </div>
+      </div>
+    {% elif error %}
+      <div class="banner banner-bad" style="text-align:left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+        <div class="spacer">{{ error }}</div>
+      </div>
+    {% endif %}
+
+    <form method="post" autocomplete="on">
+      <label class="field">
+        <span class="lbl">Password</span>
+        <input type="password" name="password" autocomplete="current-password"
+               autofocus {{ 'disabled' if wait }}>
+      </label>
+      <button class="btn btn-primary btn-lg" type="submit" style="width:100%"
+              {{ 'disabled' if wait }}>Sign in</button>
+    </form>
+
+    <p class="muted small" style="margin-top:20px">
+      The password is whatever <code>MACHINE_LOCATOR_PASSWORD</code> is set to
+      wherever this is running.
+    </p>
+  </main>
+</body>
+</html>

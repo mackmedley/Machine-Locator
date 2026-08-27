@@ -21,6 +21,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+deploy = ["gunicorn>=21.2"]
 
 [project.scripts]
 mloc = "machine_locator.cli:main"

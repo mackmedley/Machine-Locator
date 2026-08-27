@@ -6,6 +6,9 @@
   <title>{% block title %}Machine Locator{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%232a78d6'/><rect x='3.2' y='2.8' width='9.6' height='10.4' rx='1.2' fill='none' stroke='white' stroke-width='1.1'/><path d='M3.2 6.2h9.6M3.2 9.6h9.6M8 2.8v10.4' stroke='white' stroke-width='.85'/></svg>">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
@@ -64,6 +67,12 @@
     </nav>
 
     <div class="sidebar-foot">
+      {% if auth_enabled %}
+      <a class="btn btn-ghost" href="{{ url_for('logout') }}" style="width:100%;justify-content:flex-start">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Sign out
+      </a>
+      {% endif %}
       <button class="btn btn-ghost" id="theme-toggle" style="width:100%;justify-content:flex-start">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
         Theme

@@ -186,8 +186,9 @@ def test_build_message_sets_headers_and_footer():
 
 
 def test_dry_run_sends_nothing():
-    assert send_email(SmtpConfig(), identity(), "a@b.com", "s", "b", dry_run=True) == \
-        "dry run -- not sent"
+    # A dry run builds and validates the message but never connects, so there
+    # is no Message-ID to hand back.
+    assert send_email(SmtpConfig(), identity(), "a@b.com", "s", "b", dry_run=True) == ""
 
 
 def test_send_without_config_raises():
@@ -290,7 +291,7 @@ def test_process_queue_sends_and_advances_the_pipeline(db, monkeypatch):
     sent = []
     monkeypatch.setattr(
         "machine_locator.outreach.sequences.send_email",
-        lambda *a, **k: (sent.append(a[2]), "sent")[1],
+        lambda *a, **k: (sent.append(a[2]), "<abc123@sooner.example>")[1],
     )
     config = SmtpConfig(host="h", port=587, username="u", password="p")
     result = process_queue(db, identity(), config)
@@ -300,6 +301,9 @@ def test_process_queue_sends_and_advances_the_pipeline(db, monkeypatch):
     assert sent == ["owner@suds.example"]
     assert db.get_pipeline("node/1")["stage"] == "contacted"
     assert len(db.query_messages(status="queued", site_id="node/1")) == 2
+    # The Message-ID is kept so a reply can be threaded back to this exact email.
+    delivered = db.query_messages(status="sent", site_id="node/1")[0]
+    assert delivered["message_id"] == "<abc123@sooner.example>"
 
 
 def test_process_queue_skips_someone_who_opted_out_after_queueing(db, monkeypatch):

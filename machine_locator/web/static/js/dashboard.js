@@ -126,10 +126,80 @@
     }).join("") + "</ul>";
   }
 
+  /* "Today" is deliberately separate from the KPI tiles: those are a status
+     report, this is a to-do list, and mixing them buries the second one. */
+  function renderToday(data) {
+    var card = document.getElementById("today-card");
+    var body = document.getElementById("today-body");
+    if (!card || !body) return;
+
+    var blocks = [];
+
+    if (data.due_emails) {
+      blocks.push(
+        "<div class='today-item'>" +
+          "<span class='today-n'>" + data.due_emails + "</span>" +
+          "<div><strong>email" + (data.due_emails === 1 ? "" : "s") + " ready to go out</strong>" +
+            "<div class='muted small'>" +
+              (data.can_send ? "Review and send whenever you're ready."
+                             : ML.esc((data.send_blocked_because || [])[0] || "Sending is paused.")) +
+            "</div></div>" +
+          "<a class='btn btn-sm " + (data.can_send ? "btn-primary" : "") +
+            "' href='/outreach'>" + (data.can_send ? "Send them" : "Fix it") + "</a>" +
+        "</div>");
+    }
+
+    (data.replies || []).forEach(function (r) {
+      blocks.push(
+        "<div class='today-item'>" +
+          "<span class='grade " + ML.gradeClass(r.grade) + "'>" + Math.round(r.score) + "</span>" +
+          "<div><strong>" + ML.esc(r.name) + " replied</strong>" +
+            "<div class='muted small'>Waiting since " + ML.when(r.updated_at) +
+              " — a warm lead going cold is the expensive one.</div></div>" +
+          (r.phone ? "<a class='btn btn-sm' href='tel:" + ML.esc(r.phone) + "'>Call</a>"
+                   : "<a class='btn btn-sm' href='/pipeline'>Open</a>") +
+        "</div>");
+    });
+
+    (data.actions || []).forEach(function (a) {
+      blocks.push(
+        "<div class='today-item'>" +
+          "<span class='grade " + ML.gradeClass(a.grade) + "'>" + Math.round(a.score) + "</span>" +
+          "<div><strong>" + ML.esc(a.name) + "</strong>" +
+            "<div class='muted small'>" + ML.esc(a.next_action || "Follow up") +
+              " · " + ML.esc(ML.dueLabel(a.next_action_at)) + "</div></div>" +
+          ((a.contact_phone || a.phone)
+            ? "<a class='btn btn-sm' href='tel:" + ML.esc(a.contact_phone || a.phone) + "'>Call</a>"
+            : "<a class='btn btn-sm' href='/pipeline'>Open</a>") +
+        "</div>");
+    });
+
+    if (data.failed) {
+      blocks.push(
+        "<div class='today-item'>" +
+          "<span class='today-n' style='color:var(--critical)'>" + data.failed + "</span>" +
+          "<div><strong>email" + (data.failed === 1 ? "" : "s") + " failed to send</strong>" +
+            "<div class='muted small'>Usually a bad address or a mail-server rejection.</div></div>" +
+          "<a class='btn btn-sm' href='/outreach'>Look</a>" +
+        "</div>");
+    }
+
+    if (!blocks.length) { card.hidden = true; return; }
+    card.hidden = false;
+    // Six is about as much as reads as a to-do list rather than a backlog.
+    var SHOWN = 6;
+    body.innerHTML = blocks.slice(0, SHOWN).join("") +
+      (blocks.length > SHOWN
+        ? "<p class='muted small' style='margin:11px 0 0'>and " +
+          (blocks.length - SHOWN) + " more — <a href='/pipeline'>see the pipeline</a>.</p>"
+        : "");
+  }
+
   function load() {
     ML.api("/api/stats").then(draw).catch(function (err) {
       ML.toast(err.message, "bad");
     });
+    ML.api("/api/today").then(renderToday).catch(function () { /* non-critical */ });
   }
 
   function startScan() {

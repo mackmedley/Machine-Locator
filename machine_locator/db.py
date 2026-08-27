@@ -182,7 +182,16 @@ CREATE INDEX IF NOT EXISTS idx_jobs_recent ON jobs(id DESC);
 # existing database upgrades in place instead of needing a rebuild.
 MIGRATIONS = (
     ("sites", "email", "TEXT DEFAULT ''"),
+    ("outreach_messages", "message_id", "TEXT DEFAULT ''"),
 )
+
+EXTRA_TABLES = """
+CREATE TABLE IF NOT EXISTS handled_replies (
+    message_id TEXT PRIMARY KEY,
+    site_id TEXT,
+    handled_at TEXT
+);
+"""
 
 _JSON_SITE_FIELDS = ("tags", "breakdown", "reasons")
 _JSON_LISTING_FIELDS = ("relevance_reasons", "raw")
@@ -195,6 +204,7 @@ class Database:
         self.conn = sqlite3.connect(str(self.path))
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        self.conn.executescript(EXTRA_TABLES)
         self._migrate()
         self.conn.commit()
 
@@ -614,6 +624,7 @@ def add_message(self, message: Dict[str, Any]) -> int:
         "scheduled_at": message.get("scheduled_at", ""),
         "sent_at": message.get("sent_at", ""),
         "error": message.get("error", ""),
+        "message_id": message.get("message_id", ""),
         "created_at": utcnow(),
     }
     columns = ", ".join(payload)
@@ -626,13 +637,20 @@ def add_message(self, message: Dict[str, Any]) -> int:
 
 
 @_extend(Database)
-def update_message(self, message_id: int, **fields: Any) -> None:
-    allowed = {"status", "sent_at", "error", "scheduled_at", "subject", "body", "to_address"}
+def update_message(self, row_id: int, **fields: Any) -> None:
+    """Update one outreach row.
+
+    The parameter is ``row_id``, not ``message_id``: ``message_id`` is a
+    settable *column* holding the email's Message-ID header, and naming the
+    primary key the same thing made the two collide.
+    """
+    allowed = {"status", "sent_at", "error", "scheduled_at", "subject", "body",
+               "to_address", "message_id"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return
     assignments = ", ".join(f"{k} = :{k}" for k in updates)
-    updates["id"] = message_id
+    updates["id"] = row_id
     self.conn.execute(f"UPDATE outreach_messages SET {assignments} WHERE id = :id", updates)
     self.conn.commit()
 
@@ -886,3 +904,100 @@ def outreach_stats(self) -> Dict[str, int]:
         "sent": count("status = 'sent'"),
         "failed": count("status = 'failed'"),
     }
+
+
+# -------------------------------------------------------------- reply matching
+
+@_extend(Database)
+def find_sent_by_message_id(self, message_id: str) -> Optional[Dict[str, Any]]:
+    """The outgoing message a reply is answering, matched on Message-ID."""
+    clean = (message_id or "").strip()
+    if not clean:
+        return None
+    row = self.conn.execute(
+        "SELECT * FROM outreach_messages WHERE message_id = ? AND message_id != '' LIMIT 1",
+        (clean,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+@_extend(Database)
+def find_sent_by_recipient(self, address: str) -> Optional[Dict[str, Any]]:
+    """Fallback match: the most recent thing we sent to this address.
+
+    Plenty of mail clients drop or rewrite In-Reply-To, so matching on the
+    address is what makes reply detection work in practice.
+    """
+    clean = (address or "").strip().lower()
+    if not clean:
+        return None
+    row = self.conn.execute(
+        "SELECT * FROM outreach_messages WHERE lower(to_address) = ? AND status = 'sent' "
+        "ORDER BY id DESC LIMIT 1",
+        (clean,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+@_extend(Database)
+def is_reply_handled(self, message_id: str) -> bool:
+    if not message_id:
+        return False
+    return self.conn.execute(
+        "SELECT 1 FROM handled_replies WHERE message_id = ?", (message_id,)
+    ).fetchone() is not None
+
+
+@_extend(Database)
+def mark_reply_handled(self, message_id: str, site_id: str = "") -> None:
+    if not message_id:
+        return
+    self.conn.execute(
+        "INSERT OR REPLACE INTO handled_replies (message_id, site_id, handled_at) "
+        "VALUES (?, ?, ?)",
+        (message_id, site_id, utcnow()),
+    )
+    self.conn.commit()
+
+
+# ------------------------------------------------------------------- today
+
+@_extend(Database)
+def due_actions(self, limit: int = 40) -> List[Dict[str, Any]]:
+    """Prospects with something owed on them today or already overdue.
+
+    The outreach queue answers "what will the machine send"; this answers
+    "what do *I* need to do", which is a different and more useful question
+    once a pipeline has anything in it.
+    """
+    rows = self.conn.execute(
+        "SELECT p.site_id, p.stage, p.next_action, p.next_action_at, "
+        "       p.contact_name, p.contact_phone, p.contact_email, "
+        "       s.name, s.address, s.score, s.grade, s.phone "
+        "FROM pipeline p JOIN sites s ON s.id = p.site_id "
+        "WHERE p.next_action_at != '' AND p.next_action_at IS NOT NULL "
+        # 'queued' is excluded on purpose: an intro email waiting to send is
+        # work for the sender, not for the person. It is already counted as
+        # "emails ready to go out", and listing it twice buries the calls.
+        "  AND p.next_action_at <= ? AND p.stage NOT IN ('won', 'lost', 'queued') "
+        "ORDER BY p.next_action_at ASC LIMIT ?",
+        (utcnow(), limit),
+    )
+    return [dict(r) for r in rows]
+
+
+@_extend(Database)
+def awaiting_reply_followup(self, limit: int = 20) -> List[Dict[str, Any]]:
+    """People who answered and are still sitting in Interested.
+
+    A warm reply going cold because nobody followed up is the most expensive
+    thing that can happen in this pipeline, so it gets its own list.
+    """
+    rows = self.conn.execute(
+        "SELECT p.site_id, p.contact_name, p.contact_email, "
+        "       s.name, s.address, s.score, s.grade, s.phone, p.updated_at "
+        "FROM pipeline p JOIN sites s ON s.id = p.site_id "
+        "WHERE p.stage = 'interested' ORDER BY p.updated_at ASC LIMIT ?",
+        (limit,),
+    )
+    return [dict(r) for r in rows]

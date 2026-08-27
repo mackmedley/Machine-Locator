@@ -47,15 +47,32 @@
     });
   }
 
-  document.getElementById("btn-test").onclick = function () {
-    var out = document.getElementById("test-result");
+  // Same courtesy for the incoming server: guess it from the email domain.
+  var imapHost = document.getElementById("imap-host");
+  var imapPort = document.getElementById("imap-port");
+  var IMAP_GUESSES = {
+    "gmail.com": ["imap.gmail.com", 993], "googlemail.com": ["imap.gmail.com", 993],
+    "outlook.com": ["outlook.office365.com", 993], "hotmail.com": ["outlook.office365.com", 993],
+    "yahoo.com": ["imap.mail.yahoo.com", 993], "icloud.com": ["imap.mail.me.com", 993]
+  };
+  if (senderEmail && imapHost) {
+    senderEmail.addEventListener("blur", function () {
+      var at = senderEmail.value.indexOf("@");
+      if (at < 0 || imapHost.value.trim()) return;
+      var guess = IMAP_GUESSES[senderEmail.value.slice(at + 1).toLowerCase()];
+      if (guess) { imapHost.value = guess[0]; imapPort.value = guess[1]; }
+    });
+  }
+
+  function testEndpoint(button, outputId, url) {
+    var out = document.getElementById(outputId);
     out.textContent = "Testing…";
     out.className = "small muted";
     var body = {};
     new FormData(form).forEach(function (v, k) { body[k] = v; });
     // Save first, so the test uses what's on screen rather than what's stored.
     ML.api("/api/settings", { body: body })
-      .then(function () { return ML.api("/api/settings/test-smtp", { body: {} }); })
+      .then(function () { return ML.api(url, { body: {} }); })
       .then(function (res) {
         out.textContent = res.message;
         out.className = "small " + (res.ok ? "status status-good" : "status status-critical");
@@ -64,6 +81,18 @@
         out.textContent = err.message;
         out.className = "small status status-critical";
       });
+  }
+
+  var imapBtn = document.getElementById("btn-test-imap");
+  if (imapBtn) {
+    imapBtn.onclick = function () {
+      testEndpoint(imapBtn, "imap-result", "/api/settings/test-imap");
+    };
+  }
+
+  var smtpBtn = document.getElementById("btn-test");
+  smtpBtn.onclick = function () {
+    testEndpoint(smtpBtn, "test-result", "/api/settings/test-smtp");
   };
 
   document.getElementById("btn-suppress").onclick = function () {

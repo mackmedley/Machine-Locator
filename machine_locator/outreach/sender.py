@@ -109,14 +109,16 @@ def send_email(
     dry_run: bool = False,
     timeout: int = 30,
 ) -> str:
-    """Send one message. Returns a short human-readable result.
+    """Send one message. Returns the Message-ID it went out with.
 
-    ``dry_run`` builds and validates the message but connects to nothing --
-    it is the default until the user has tested their mail settings.
+    The caller stores that id, which is what lets a reply be matched back to
+    the exact email it answers. ``dry_run`` builds and validates the message
+    but connects to nothing.
     """
     message = build_message(identity, to_address, subject, body)
+    sent_id = message["Message-ID"]
     if dry_run:
-        return "dry run -- not sent"
+        return ""
     if not config.is_configured:
         raise SendError("SMTP is not configured")
 
@@ -144,7 +146,7 @@ def send_email(
         raise SendError(f"The mail server refused the recipient {to_address}") from exc
     except (smtplib.SMTPException, OSError, ssl.SSLError) as exc:
         raise SendError(f"Could not send: {type(exc).__name__}: {exc}") from exc
-    return "sent"
+    return sent_id
 
 
 def test_connection(config: SmtpConfig, timeout: int = 20) -> Tuple[bool, str]:

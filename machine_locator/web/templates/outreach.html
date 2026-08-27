@@ -2,6 +2,10 @@
 {% block title %}Outreach — Machine Locator{% endblock %}
 {% block heading %}Outreach{% endblock %}
 {% block topbar_actions %}
+  <button class="btn" id="btn-replies">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
+    Check for replies
+  </button>
   <button class="btn" id="btn-dry-run">Preview send</button>
   <button class="btn btn-primary" id="btn-send">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
@@ -86,6 +90,9 @@
           <li>"STOP" or anything like it suppresses that address <em>and its whole domain</em>, permanently.</li>
           <li>A daily cap (default 40) stops you burning your sending domain.</li>
           <li>Mail goes through <em>your</em> mail account, so replies come to you.</li>
+          <li><strong>Check for replies</strong> reads your inbox and stops a sequence
+              the moment somebody answers — so nobody who said yes gets a
+              "sorry I missed you" a week later.</li>
         </ul>
         <p class="muted small" style="margin-top:12px">
           Texting isn't automated here on purpose — cold automated SMS falls under the TCPA,

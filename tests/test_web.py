@@ -374,3 +374,68 @@ def test_categories_are_ranked_by_average_score(client):
     assert scores == sorted(scores, reverse=True)
     # Thin categories are excluded so one lucky site cannot top the chart.
     assert all(c["n"] >= 3 for c in categories)
+
+
+# ------------------------------------------------------------------ today
+
+def test_today_is_empty_on_a_fresh_install(client):
+    data = client.get("/api/today").get_json()
+    assert data["due_emails"] == 0
+    assert data["actions"] == [] and data["replies"] == []
+
+
+def test_today_lists_due_emails(configured):
+    configured.post("/api/outreach/enroll", json={"site_ids": ["node/1"]})
+    data = configured.get("/api/today").get_json()
+    # Only the day-0 intro is due; the later steps are scheduled ahead.
+    assert data["due_emails"] == 1
+    assert data["can_send"] is True
+
+
+def test_today_surfaces_a_prospect_who_replied(configured):
+    configured.post("/api/outreach/enroll", json={"site_ids": ["node/1"]})
+    configured.post("/api/sites/node/1/reply", json={"text": "Sounds good, call me"})
+    replies = configured.get("/api/today").get_json()["replies"]
+    assert [r["site_id"] for r in replies] == ["node/1"]
+    assert replies[0]["name"] == "Suds Laundromat"
+
+
+def test_today_lists_an_overdue_action(client):
+    client.post("/api/sites/node/1/pipeline", json={
+        "stage": "contacted", "next_action": "Call the owner back",
+        "next_action_at": "2020-01-01T00:00:00+00:00",
+    })
+    actions = client.get("/api/today").get_json()["actions"]
+    assert actions[0]["next_action"] == "Call the owner back"
+
+
+def test_today_ignores_actions_that_are_not_due_yet(client):
+    client.post("/api/sites/node/1/pipeline", json={
+        "stage": "contacted", "next_action": "Later",
+        "next_action_at": "2099-01-01T00:00:00+00:00",
+    })
+    assert client.get("/api/today").get_json()["actions"] == []
+
+
+def test_today_drops_closed_prospects(client):
+    client.post("/api/sites/node/1/pipeline", json={
+        "stage": "won", "next_action": "Done",
+        "next_action_at": "2020-01-01T00:00:00+00:00",
+    })
+    assert client.get("/api/today").get_json()["actions"] == []
+
+
+def test_today_explains_why_sending_is_blocked(client):
+    """Unconfigured, the card must say what to fix rather than sit silent."""
+    data = client.get("/api/today").get_json()
+    assert data["can_send"] is False
+    assert data["send_blocked_because"]
+
+
+def test_today_does_not_repeat_queued_emails_as_human_tasks(configured):
+    """Enrolling sets a next action, but a queued send is the machine's job --
+    it is already counted as "emails ready to go out"."""
+    configured.post("/api/outreach/enroll", json={"site_ids": ["node/1"]})
+    data = configured.get("/api/today").get_json()
+    assert data["due_emails"] == 1
+    assert [a["site_id"] for a in data["actions"]] == []

@@ -80,6 +80,36 @@
   </div>
 
   <div class="card">
+    <div class="card-head">
+      <h2>Reading replies</h2>
+      <div class="spacer"></div>
+      {% if imap_configured %}<span class="status status-good">connected</span>{% endif %}
+    </div>
+    <div class="card-body">
+      <p class="muted small" style="margin-bottom:14px">
+        Let Machine Locator watch your inbox and stop a sequence the moment somebody
+        answers. It only ever reads — nothing is marked, moved or deleted. If you use
+        one account for both, leave the username and password blank and it reuses
+        your sending details.
+      </p>
+      <div class="grid" style="grid-template-columns:2fr 1fr;gap:10px">
+        <label class="field"><span class="lbl">Incoming mail server (IMAP)</span>
+          <input type="text" name="imap_host" id="imap-host" value="{{ stored.imap_host or '' }}" placeholder="imap.gmail.com"></label>
+        <label class="field"><span class="lbl">Port</span>
+          <input type="number" name="imap_port" id="imap-port" value="{{ stored.imap_port or 993 }}"></label>
+      </div>
+      <label class="field"><span class="lbl">Username <span class="muted">(optional)</span></span>
+        <input type="text" name="imap_username" value="{{ stored.imap_username or '' }}" placeholder="same as sending"></label>
+      <label class="field"><span class="lbl">Password <span class="muted">(optional)</span></span>
+        <input type="password" name="imap_password" placeholder="{{ '••••••••••' if imap_configured else 'same as sending' }}"></label>
+      <label class="field"><span class="lbl">Folder</span>
+        <input type="text" name="imap_folder" value="{{ stored.imap_folder or 'INBOX' }}"></label>
+      <button type="button" class="btn" id="btn-test-imap">Test mailbox</button>
+      <span id="imap-result" class="small" style="margin-left:10px"></span>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-head"><h2>Sending limits</h2></div>
     <div class="card-body">
       <label class="field"><span class="lbl">Maximum emails per day</span>
