@@ -631,7 +631,10 @@ def export_cmd(
         console.print("[dim]Import it at google.com/mymaps or drag it onto geojson.io.[/dim]")
 
 
-def _serve(ctx: click.Context, host: str, port: int, debug: bool, open_browser: bool) -> None:
+def _serve(
+    ctx: click.Context, host: str, port: int, debug: bool,
+    open_browser: bool, friendly: bool = False,
+) -> None:
     from .web.app import create_app
 
     settings = get_settings(ctx)
@@ -639,12 +642,27 @@ def _serve(ctx: click.Context, host: str, port: int, debug: bool, open_browser: 
     app = create_app(settings)
     url = f"http://{host}:{port}"
 
-    console.print(Panel(
-        f"[bold green]Machine Locator is running[/bold green]\n\n"
-        f"Open [bold]{url}[/bold] in your browser.\n"
-        f"Press Ctrl+C here to stop it.",
-        expand=False,
-    ))
+    if friendly:
+        # Somebody who double-clicked an icon should not be told their app is
+        # an unsuitable "development server", nor watch HTTP request logs
+        # scroll past. Developers running `mloc serve` still get both.
+        import logging
+
+        logging.getLogger("werkzeug").setLevel(logging.ERROR)
+        console.print(Panel(
+            "[bold green]Machine Locator is open in your browser.[/bold green]\n\n"
+            f"If it didn't open, go to [bold]{url}[/bold]\n\n"
+            "[dim]Leave this window open while you work.\n"
+            "Closing it, or pressing Ctrl+C, shuts the app down.[/dim]",
+            title="Ready", expand=False,
+        ))
+    else:
+        console.print(Panel(
+            f"[bold green]Machine Locator is running[/bold green]\n\n"
+            f"Open [bold]{url}[/bold] in your browser.\n"
+            f"Press Ctrl+C here to stop it.",
+            expand=False,
+        ))
 
     if open_browser:
         # Give the server a moment to bind before the browser asks for the page.
@@ -653,9 +671,26 @@ def _serve(ctx: click.Context, host: str, port: int, debug: bool, open_browser: 
 
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 
-    # The reloader spawns a second process, which would open the browser twice
-    # and start duplicate background jobs.
-    app.run(host=host, port=port, debug=debug, use_reloader=False)
+    try:
+        # The reloader spawns a second process, which would open the browser
+        # twice and start duplicate background jobs.
+        if friendly:
+            # Serve through Werkzeug directly: Flask's own run() echoes
+            # "Serving Flask app..." and "Debug mode: off", which mean nothing
+            # to somebody who double-clicked an icon.
+            from werkzeug.serving import run_simple
+
+            run_simple(host, port, app, use_reloader=False, use_debugger=False,
+                       threaded=True)
+        else:
+            app.run(host=host, port=port, debug=debug, use_reloader=False)
+    except KeyboardInterrupt:
+        console.print("\n[dim]Machine Locator stopped. Your data is saved.[/dim]")
+    except OSError as exc:
+        raise click.ClickException(
+            f"Could not start on port {port}: {exc}\n"
+            f"Something else is probably using it -- try `mloc app --port 5050`."
+        )
 
 
 @main.command("app")
@@ -669,7 +704,7 @@ def app_cmd(ctx: click.Context, port: int, host: str, no_open: bool) -> None:
     This is the one command you need -- everything the other commands do has a
     button in the web app.
     """
-    _serve(ctx, host, port, debug=False, open_browser=not no_open)
+    _serve(ctx, host, port, debug=False, open_browser=not no_open, friendly=True)
 
 
 @main.command("serve")

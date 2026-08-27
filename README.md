@@ -11,10 +11,21 @@ three jobs:
 3. **Watches for routes for sale.** Polls the business-for-sale marketplaces and
    flags the listings that are genuinely local vending routes.
 
-```bash
-pip install -e .
-mloc app          # opens in your browser — everything is a button from here
-```
+**To run it: download this folder and double-click the launcher.**
+
+| Your computer | Double-click |
+|---|---|
+| Mac | `Machine Locator.command` |
+| Windows | `Machine Locator.bat` |
+| Linux | `Machine Locator.command` (choose "Run in Terminal") |
+
+The first run takes about a minute while it sets itself up. After that it opens
+in a couple of seconds, straight into your browser. Nothing is installed outside
+this folder — delete the folder and it's gone.
+
+**[Try the interactive preview →](https://claude.ai/code/artifact/81ee93e6-7bbf-4be9-a171-daa503774da4)**
+— the real interface running on sample data, so you can click around from any
+device before you download anything.
 
 ![The dashboard](docs/dashboard.png)
 
@@ -22,20 +33,28 @@ mloc app          # opens in your browser — everything is a button from here
 
 ## Install
 
+Double-click the launcher for your system (above) and you're done — it sets up
+everything it needs on first run.
+
+**If the launcher won't start**, it's almost always because Python isn't
+installed. The launcher says so and offers to open the download page; grab it
+from [python.org/downloads](https://www.python.org/downloads/) (on Windows, tick
+*"Add Python to PATH"* in the installer), then double-click the launcher again.
+
+**If you'd rather use a terminal:**
+
 ```bash
-git clone https://github.com/mackmedley/machine-locator.git
-cd machine-locator
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
 mloc app
 ```
 
-Python 3.9+. No API keys needed to find prospects — the location data comes from
-OpenStreetMap's free Overpass API. To send outreach you connect your own email
-account (see [Settings](#settings-and-the-sending-guardrails)).
+Python 3.9+. No API keys are needed to find prospects — the location data comes
+from OpenStreetMap's free Overpass API. To send outreach you connect your own
+email account, in Settings.
 
-`mloc app` starts the server and opens your browser. Leave the terminal window
-open while you use it; Ctrl+C stops it.
+Leave the launcher window open while you work; closing it shuts the app down.
+Your data is saved as you go.
 
 ---
 
