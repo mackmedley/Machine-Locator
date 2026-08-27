@@ -1,0 +1,77 @@
+BLUE OX VENDING - MACHINE LOCATOR
+=================================
+
+Finds businesses around Oklahoma City worth putting a machine in,
+and emails them for you.
+
+It runs on this computer. It is free. Nothing is uploaded anywhere.
+
+
+HOW TO START IT
+---------------
+
+  ON A MAC
+     RIGHT-CLICK  "Machine Locator.command"  and choose  Open.
+     Then click  Open  again when it asks.
+
+     Use right-click the FIRST time, not a double-click. macOS blocks
+     downloaded files that are double-clicked, and right-click -> Open
+     is how you tell it this one is fine. After that, double-click works.
+
+     If macOS says "Apple could not verify this app":
+        Apple menu -> System Settings -> Privacy & Security
+        scroll down, click  Open Anyway,  then try again.
+
+  ON WINDOWS
+     Double-click  "Machine Locator.bat"
+
+     If a blue "Windows protected your PC" box appears:
+        click  More info,  then  Run anyway.
+
+
+WHAT HAPPENS
+------------
+
+A black window opens. The first time, it spends about a minute setting
+itself up. Then your web browser opens with the app.
+
+LEAVE THE BLACK WINDOW OPEN while you use it. Closing it stops the app.
+Nothing is lost - your data is saved as you go.
+
+To stop: close the black window. To start again: same as above.
+
+
+IF IT SAYS PYTHON ISN'T INSTALLED
+---------------------------------
+
+It needs a free program called Python. The window shows you the link,
+or go to:   https://www.python.org/downloads/
+
+  ON WINDOWS: during the install, TICK THE BOX that says
+              "Add Python to PATH". This matters.
+
+  ON A MAC:   if a box pops up asking to install "command line
+              developer tools", click Install, wait for it to finish,
+              then start Machine Locator again.
+
+Install it, then start Machine Locator again.
+
+
+FIRST THINGS TO DO IN THE APP
+-----------------------------
+
+  1. Click  Find prospects.  Takes 2-3 minutes. Finds and ranks
+     around 400 OKC businesses.
+
+  2. Go to  Settings.  Blue Ox Vending and your phone number are
+     already filled in. Add:
+        - your mailing address (required by law on business email)
+        - your email address and password
+
+     For Gmail you need an "App Password", not your normal one:
+        https://myaccount.google.com/apppasswords
+
+  3. Send ONE test email to yourself before emailing any real business.
+     Instructions are in README.md.
+
+Full details are in README.md.

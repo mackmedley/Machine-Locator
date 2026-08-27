@@ -37,7 +37,16 @@ if [ -z "$PYTHON" ]; then
   echo ""
   echo "      ${BOLD}https://www.python.org/downloads/${OFF}"
   echo ""
-  echo "  Install it, then double-click this file again."
+  if [ "$(uname -s)" = "Darwin" ]; then
+    # macOS ships a python3 stub that pops a GUI installer instead of running.
+    # People see that dialog and this message at the same time, so name it.
+    echo "  ${YELLOW}If a box just appeared asking to install \"command line"
+    echo "  developer tools\", click Install, wait for it to finish, then"
+    echo "  open Machine Locator again. That is all you need -- you can"
+    echo "  ignore the python.org link if you do that.${OFF}"
+    echo ""
+  fi
+  echo "  Then open this file again."
   echo ""
   if command -v open >/dev/null 2>&1; then
     read -r -p "  Open the download page now? [Y/n] " reply
@@ -55,6 +64,18 @@ if [ ! -x ".venv/bin/mloc" ]; then
 fi
 
 if [ "$NEEDS_INSTALL" -eq 1 ]; then
+  if ! touch ".write-test" 2>/dev/null; then
+    echo "  ${RED}This folder is read-only, so it can't set itself up.${OFF}"
+    echo ""
+    echo "  This usually means it is still inside the downloaded .zip."
+    echo "  Drag the folder somewhere real -- your Desktop or Documents --"
+    echo "  and open it from there."
+    echo ""
+    read -r -p "  Press Return to close. " _
+    exit 1
+  fi
+  rm -f ".write-test"
+
   echo "  ${YELLOW}First run -- setting things up. This takes a minute.${OFF}"
   echo ""
   if [ ! -d ".venv" ]; then

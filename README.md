@@ -11,37 +11,52 @@ three jobs:
 3. **Watches for routes for sale.** Polls the business-for-sale marketplaces and
    flags the listings that are genuinely local vending routes.
 
-**To run it: download this folder and double-click the launcher.**
+## Start here — free, three steps
 
-| Your computer | Double-click |
+**1.** [**Download it**](https://github.com/mackmedley/Machine-Locator/archive/refs/heads/claude/okc-vending-locations-routes-izcy67.zip) *(one file, ~1 MB)*
+
+**2.** Unzip it, and drag the folder to your Desktop.
+
+**3.** Open the launcher:
+
+| | |
 |---|---|
-| Mac | `Machine Locator.command` |
-| Windows | `Machine Locator.bat` |
-| Linux | `Machine Locator.command` (choose "Run in Terminal") |
+| **Mac** | **Right-click** `Machine Locator.command` → **Open** → **Open**. Right-click the first time, not a double-click — macOS blocks downloaded files that are double-clicked. After that, double-click works. |
+| **Windows** | Double-click `Machine Locator.bat`. If a blue *"Windows protected your PC"* box appears, click **More info** → **Run anyway**. |
 
-The first run takes about a minute while it sets itself up. After that it opens
-in a couple of seconds, straight into your browser. Nothing is installed outside
-this folder — delete the folder and it's gone.
+The first run takes about a minute to set itself up, then your browser opens.
+After that it starts in seconds.
 
-**[Try the interactive preview →](https://claude.ai/code/artifact/81ee93e6-7bbf-4be9-a171-daa503774da4)**
-— the real interface running on sample data, so you can click around from any
-device before you download anything. (Source: [`docs/preview.html`](docs/preview.html).)
+Leave the black window open while you work — closing it stops the app. Your
+data is saved as you go.
+
+There's a plain-language `START HERE.txt` in the folder saying the same thing,
+including what to do if it says Python isn't installed.
+
+**[Or try the interactive preview first →](https://claude.ai/code/artifact/81ee93e6-7bbf-4be9-a171-daa503774da4)**
+— the real interface on sample data, from any device, nothing to install.
 
 ![The dashboard](docs/dashboard.png)
 
 ---
 
-## Install
+## If something goes wrong
 
-Double-click the launcher for your system (above) and you're done — it sets up
-everything it needs on first run.
+**"Python isn't installed."** It needs Python, which is a free download from
+[python.org/downloads](https://www.python.org/downloads/). On Windows, tick
+**"Add Python to PATH"** in the installer — it's easy to miss and nothing works
+without it. On a Mac, if a box appears offering to install *"command line
+developer tools"*, click Install, wait, and open Machine Locator again.
 
-**If the launcher won't start**, it's almost always because Python isn't
-installed. The launcher says so and offers to open the download page; grab it
-from [python.org/downloads](https://www.python.org/downloads/) (on Windows, tick
-*"Add Python to PATH"* in the installer), then double-click the launcher again.
+**"This folder is read-only."** The folder is still inside the downloaded zip.
+Drag it out to your Desktop and open it from there.
 
-**If you'd rather use a terminal:**
+**Nothing happens when I double-click it (Mac).** Right-click the file and
+choose **Open** instead. If macOS says it can't verify the app, go to
+ → System Settings → Privacy & Security, scroll down, and click
+**Open Anyway**.
+
+**Prefer a terminal?**
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -53,15 +68,14 @@ Python 3.9+. No API keys are needed to find prospects — the location data come
 from OpenStreetMap's free Overpass API. To send outreach you connect your own
 email account, in Settings.
 
-Leave the launcher window open while you work; closing it shuts the app down.
-Your data is saved as you go.
-
 ---
 
-## Running it as a real website
+## Optional: running it on a URL instead
 
-Want it on a URL you can open from your phone, the van, or any computer? Deploy
-it once and it's yours:
+You don't need this. The launcher above is free and does everything. This
+section is only if you want to reach it from your phone or the van without
+your computer being on — which means paying a host about $7/month for a disk
+that keeps your data between restarts.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mackmedley/Machine-Locator)
 

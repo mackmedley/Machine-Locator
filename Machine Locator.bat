@@ -25,7 +25,10 @@ if not defined PY (
     echo.
     echo       https://www.python.org/downloads/
     echo.
-    echo   IMPORTANT: tick "Add Python to PATH" in the installer.
+    echo   IMPORTANT: on the first screen of the installer, tick the box
+    echo   that says "Add Python to PATH". It is easy to miss and nothing
+    echo   works without it.
+    echo.
     echo   Then double-click this file again.
     echo.
     start "" "https://www.python.org/downloads/"
@@ -35,6 +38,21 @@ if not defined PY (
 
 REM --- set up the private environment on first run --------------------------
 if not exist ".venv\Scripts\mloc.exe" (
+    REM Running straight out of the .zip leaves the folder read-only, which
+    REM otherwise fails deep inside pip with nothing useful on screen.
+    copy /y nul ".write-test" >nul 2>&1
+    if errorlevel 1 (
+        echo   This folder is read-only, so it can't set itself up.
+        echo.
+        echo   This usually means it is still inside the downloaded .zip.
+        echo   Right-click the zip, choose "Extract All", and open the
+        echo   folder that comes out.
+        echo.
+        pause
+        exit /b 1
+    )
+    del ".write-test" >nul 2>&1
+
     echo   First run -- setting things up. This takes a minute.
     echo.
     if not exist ".venv" (
