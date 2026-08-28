@@ -65,10 +65,17 @@
           <input type="number" name="smtp_port" id="smtp-port" value="{{ stored.smtp_port or 587 }}"></label>
       </div>
       <label class="field"><span class="lbl">Username</span>
-        <input type="text" name="smtp_username" value="{{ stored.smtp_username or '' }}"></label>
+        <input type="text" name="smtp_username" value="{{ stored.smtp_username or '' }}" placeholder="the same email address">
+        <span class="help">Almost always your full email address — the same one you
+          typed above. It fills itself in when you enter the From address.</span></label>
       <label class="field"><span class="lbl">Password{% if smtp_configured %} <span class="muted">(saved — leave blank to keep)</span>{% endif %}</span>
-        <input type="password" name="smtp_password" placeholder="{{ '••••••••••' if smtp_configured else 'App password' }}">
-        <span class="help">Stored in your local database. Set <code>MACHINE_LOCATOR_SMTP_PASSWORD</code> instead if you'd rather it never touch disk.</span></label>
+        <input type="password" name="smtp_password" placeholder="{{ '••••••••••' if smtp_configured else 'app password' }}">
+        <span class="help" id="pw-guidance">
+          <strong>Not the password you sign in to email with.</strong>
+          Gmail, Outlook and Yahoo all block that, and give you a separate
+          "app password" for programs like this instead.
+          <span id="pw-provider"></span>
+        </span></label>
       <label class="field"><span class="lbl">Security</span>
         <select name="smtp_security">
           <option value="starttls" {{ 'selected' if (stored.smtp_security or 'starttls') == 'starttls' }}>STARTTLS (port 587)</option>
@@ -101,7 +108,9 @@
       <label class="field"><span class="lbl">Username <span class="muted">(optional)</span></span>
         <input type="text" name="imap_username" value="{{ stored.imap_username or '' }}" placeholder="same as sending"></label>
       <label class="field"><span class="lbl">Password <span class="muted">(optional)</span></span>
-        <input type="password" name="imap_password" placeholder="{{ '••••••••••' if imap_configured else 'same as sending' }}"></label>
+        <input type="password" name="imap_password" placeholder="{{ '••••••••••' if imap_configured else 'same as sending' }}">
+        <span class="help">Leave blank unless replies come to a different account —
+          the same app password works for both.</span></label>
       <label class="field"><span class="lbl">Folder</span>
         <input type="text" name="imap_folder" value="{{ stored.imap_folder or 'INBOX' }}"></label>
       <button type="button" class="btn" id="btn-test-imap">Test mailbox</button>

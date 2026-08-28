@@ -34,17 +34,57 @@
     "outlook.com": ["smtp-mail.outlook.com", 587], "hotmail.com": ["smtp-mail.outlook.com", 587],
     "yahoo.com": ["smtp.mail.yahoo.com", 587], "icloud.com": ["smtp.mail.me.com", 587]
   };
+  /* Where to get an app password, per provider. Guessing the mail server is
+     only half the job -- "what do I put in the password box" is the question
+     that actually stops people, so answer it with a link to the right page. */
+  var APP_PASSWORD_HELP = {
+    "gmail.com": ["Google", "https://myaccount.google.com/apppasswords"],
+    "googlemail.com": ["Google", "https://myaccount.google.com/apppasswords"],
+    "outlook.com": ["Microsoft", "https://account.live.com/proofs/AppPassword"],
+    "hotmail.com": ["Microsoft", "https://account.live.com/proofs/AppPassword"],
+    "live.com": ["Microsoft", "https://account.live.com/proofs/AppPassword"],
+    "yahoo.com": ["Yahoo", "https://login.yahoo.com/account/security"],
+    "icloud.com": ["Apple", "https://account.apple.com/account/manage"],
+    "me.com": ["Apple", "https://account.apple.com/account/manage"]
+  };
+
+  function describeProvider() {
+    var slot = document.getElementById("pw-provider");
+    if (!slot || !senderEmail) return;
+    var at = senderEmail.value.indexOf("@");
+    var domain = at < 0 ? "" : senderEmail.value.slice(at + 1).toLowerCase();
+    var entry = APP_PASSWORD_HELP[domain];
+    if (entry) {
+      slot.innerHTML = " Get yours from " + entry[0] + ": " +
+        '<a href="' + entry[1] + '" target="_blank" rel="noopener">' + entry[1] + "</a>";
+    } else if (domain) {
+      slot.textContent = " If your email is through your own domain, your host may " +
+        "just want your normal password — try it, and use Test connection to check.";
+    } else {
+      slot.textContent = "";
+    }
+  }
+
   if (senderEmail) {
     senderEmail.addEventListener("blur", function () {
       var at = senderEmail.value.indexOf("@");
-      if (at < 0 || smtpHost.value.trim()) return;
+      if (at < 0) return;
+
+      // The username is the email address in almost every case, so fill it in
+      // rather than making somebody guess.
+      var username = form.querySelector('[name="smtp_username"]');
+      if (username && !username.value.trim()) username.value = senderEmail.value.trim();
+
       var guess = GUESSES[senderEmail.value.slice(at + 1).toLowerCase()];
-      if (guess) {
+      if (guess && !smtpHost.value.trim()) {
         smtpHost.value = guess[0];
         smtpPort.value = guess[1];
-        ML.toast("Filled in the mail server for you — check it looks right", "info");
+        ML.toast("Filled in the mail server and username for you", "info");
       }
+      describeProvider();
     });
+    senderEmail.addEventListener("input", describeProvider);
+    describeProvider();
   }
 
   // Same courtesy for the incoming server: guess it from the email domain.
