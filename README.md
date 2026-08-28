@@ -6,8 +6,12 @@ three jobs:
 1. **Finds places to put machines.** Pulls every plausible host site in the metro
    from OpenStreetMap, scores each one on how likely it is to pay for itself, and
    hands you a ranked call list on a map.
-2. **Runs your outreach for you.** Pick prospects, hit one button, and each gets a
-   personalised three-email sequence with follow-ups scheduled and replies handled.
+2. **Runs your outreach for you.** Hit one button. It works down the ranked list,
+   reads business websites for the contact details they publish, and stops once it
+   has as many businesses as you asked for that it can actually email — then each
+   gets a personalised three-email sequence with follow-ups scheduled and replies
+   handled. Anywhere with no published address is stepped over for a phone call,
+   never filled in with a guess.
 3. **Watches for routes for sale.** Polls the business-for-sale marketplaces and
    flags the listings that are genuinely local vending routes.
 

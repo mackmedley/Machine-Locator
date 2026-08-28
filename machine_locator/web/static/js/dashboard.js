@@ -223,7 +223,9 @@
   function autopilot() {
     ML.api("/api/autopilot/plan?count=20").then(function (p) {
       var blocked = (p.blocked_reasons || []).length;
-      var willSend = Math.min(p.ready.length + p.need_lookup.length, p.remaining);
+      var willSend = p.will_write_to;
+      var toRead = p.need_lookup.length;
+      var unreachable = p.no_contact_total || 0;
 
       var warn = "";
       if (blocked) {
@@ -239,13 +241,17 @@
 
       var body =
         warn +
-        "<div class='grid grid-3' style='margin-bottom:14px'>" +
-          "<div class='stat'><div class='stat-label'>Will write to</div>" +
+        "<div class='grid grid-4' style='margin-bottom:14px'>" +
+          "<div class='stat'><div class='stat-label'>" +
+            (toRead ? "Will email up to" : "Will email") + "</div>" +
             "<div class='stat-value'>" + willSend + "</div>" +
-            "<div class='stat-sub'>best prospects not yet approached</div></div>" +
-          "<div class='stat'><div class='stat-label'>Already have an email</div>" +
+            "<div class='stat-sub'>only ones with a real address</div></div>" +
+          "<div class='stat'><div class='stat-label'>Have an email now</div>" +
             "<div class='stat-value'>" + p.ready.length + "</div>" +
-            "<div class='stat-sub'>" + p.need_lookup.length + " need looking up first</div></div>" +
+            "<div class='stat-sub'>" +
+              (toRead
+                ? "plus " + toRead + " it can look up"
+                : "no looking up needed") + "</div></div>" +
           "<div class='stat'><div class='stat-label'>Today's cap</div>" +
             "<div class='stat-value'>" + p.remaining + "</div>" +
             "<div class='stat-sub'>left of " + p.daily_cap + "</div></div>" +
@@ -258,6 +264,13 @@
             "Your postal address and an opt-out are added when it sends.</p>"
           : "<p class='muted'>No prospects left to approach. Run a scan, or lower the " +
             "score cut-off.</p>") +
+        "<p class='muted small'>It works down the list until it has " + willSend +
+        " business" + (willSend === 1 ? "" : "es") + " it can actually write to — " +
+        "anyone with no published address is stepped over, never guessed at." +
+        (unreachable
+          ? " (" + unreachable + " nearby prospect" + (unreachable === 1 ? " has" : "s have") +
+            " nowhere to write to at all — those are phone calls.)"
+          : "") + "</p>" +
         "<p class='muted small'>Anyone who replies is taken out of the sequence " +
         "automatically. Anyone who asks to stop is never contacted again.</p>";
 
@@ -267,7 +280,8 @@
         "<div class='card-body'>" + body + "</div>" +
         "<div class='drawer-foot'>" +
           "<button class='btn btn-primary' id='ap-go'" +
-            (blocked || !willSend ? " disabled" : "") + ">Send to " + willSend + "</button>" +
+            (blocked || !willSend ? " disabled" : "") + ">" +
+            (toRead ? "Find and email " : "Email ") + willSend + "</button>" +
           "<button class='btn' id='ap-dry'" + (!willSend ? " disabled" : "") +
             ">Practice run, send nothing</button>" +
           "<div style='flex:1'></div><button class='btn btn-ghost' data-close>Cancel</button>" +
@@ -283,8 +297,13 @@
               "<div class='card'><div class='card-head'><h2>" + ML.esc(r.summary) + "</h2>" +
                 "<div class='spacer'></div><button class='icon-btn' data-close>&times;</button></div>" +
               "<div class='card-body'><p class='muted small'>" + r.skipped.length +
-                " were left out — mostly no contact details published anywhere. " +
-                "Those need a phone call; the script is on the Outreach page.</p>" +
+                " were stepped over on the way — no contact details published " +
+                "anywhere, so the next business took the slot. Those need a phone " +
+                "call; the script is on the Outreach page." +
+                (r.looked_up
+                  ? " " + r.looked_up + " website" + (r.looked_up === 1 ? " was" : "s were") +
+                    " read to fill the batch."
+                  : "") + "</p>" +
                 "<ul class='small muted' style='padding-left:18px'>" +
                 r.skipped.map(function (s) {
                   return "<li>" + ML.esc(s.name) + " — " + ML.esc(s.reason) + "</li>";

@@ -10,8 +10,13 @@ and the same sender, so the compliance footer, the do-not-contact list, the
 daily cap and the reply handling are not bypassed, because they are not
 reimplemented here.
 
-Two things it does on purpose:
+Three things it does on purpose:
 
+* **It fills the batch with businesses it can actually email.** Asking for
+  twenty means twenty emails go out, not "twenty picked, eleven sendable" --
+  it works down the ranked list, reading websites as it goes, until it has
+  twenty addresses. The ranking still decides the order; only the businesses
+  with nowhere to write to are stepped over.
 * **It sizes the batch to what is actually sendable today.** Queueing eighty
   emails against a cap of forty just means half of them go out tomorrow under
   yesterday's assumptions; picking forty means what you approve is what happens.
@@ -23,7 +28,7 @@ Two things it does on purpose:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .config import Settings
 from .models import Site
@@ -38,6 +43,8 @@ class AutopilotPlan:
 
     ready: List[Dict[str, Any]] = field(default_factory=list)
     need_lookup: List[Dict[str, Any]] = field(default_factory=list)
+    no_contact: List[Dict[str, Any]] = field(default_factory=list)
+    target: int = 0
     daily_cap: int = 0
     sent_today: int = 0
     remaining: int = 0
@@ -48,6 +55,11 @@ class AutopilotPlan:
     @property
     def total_candidates(self) -> int:
         return len(self.ready) + len(self.need_lookup)
+
+    @property
+    def will_write_to(self) -> int:
+        """The most it could send: the target, or however many it can reach."""
+        return min(self.target, self.total_candidates)
 
 
 @dataclass
@@ -66,6 +78,9 @@ class AutopilotResult:
         if self.blocked_reasons:
             return "Nothing sent — " + self.blocked_reasons[0]
         if not self.picked:
+            if self.skipped:
+                return (f"No reachable prospects — {len(self.skipped)} looked at, "
+                        "none publish an email address")
             return "No new prospects to approach"
         return (f"{self.sent} email(s) sent to {self.enrolled} new business(es)"
                 if self.sent else
@@ -99,6 +114,112 @@ def _address_for(db, site: Site) -> str:
     return (pipeline.get("contact_email") or site.email or "").strip()
 
 
+def _reachability(db, site: Site) -> Tuple[str, str]:
+    """``(address, '')`` if we can write to them, ``('', reason)`` if we can't.
+
+    Both empty means nothing is on file *yet* -- which is the one case worth
+    spending a website lookup on. A stated reason (bad address, opted out) is
+    final, and saying so beats reporting it later as "no email found".
+    """
+    address = _address_for(db, site)
+    if not address:
+        return "", ""
+    problem = recipient_problem(db, address, site.id)
+    return ("", problem) if problem else (address, "")
+
+
+def _website_for(site: Site) -> str:
+    return (site.website or (site.tags or {}).get("contact:website", "") or "").strip()
+
+
+def collect_sendable(
+    settings: Settings,
+    db,
+    target: int,
+    min_score: float,
+    progress=None,
+    max_lookups: int = 0,
+) -> Dict[str, Any]:
+    """Gather ``target`` prospects that can actually be emailed.
+
+    Works down the ranked list rather than taking a fixed slice off the top:
+    a business with no published address is stepped over and the next one takes
+    its place, so asking for twenty gets twenty emails rather than twenty
+    attempts. Websites are read in small batches only while the batch is still
+    short, so a list that is already full costs no lookups at all.
+    """
+    say = progress or (lambda _m: None)
+    empty = {"sites": [], "passed_over": [], "lookups": 0,
+             "contacts_found": 0, "pool": 0}
+    if target <= 0:
+        return empty
+
+    max_lookups = max_lookups or max(target * 5, 30)
+    pool = candidates(db, max(target * 8, 60), min_score)
+    if not pool:
+        return empty
+
+    sendable: List[Site] = []
+    passed_over: List[Dict[str, str]] = []
+    already_read: set = set()      # site ids we have already spent a lookup on
+    lookups = 0
+    contacts_found = 0
+    index = 0
+
+    while index < len(pool) and len(sendable) < target:
+        site = pool[index]
+        address, problem = _reachability(db, site)
+
+        if address:
+            sendable.append(site)
+            index += 1
+            continue
+        if problem:
+            passed_over.append({"name": site.name, "reason": problem})
+            index += 1
+            continue
+        if site.id in already_read:
+            passed_over.append({"name": site.name,
+                                "reason": "No email published on their website"})
+            index += 1
+            continue
+        if not _website_for(site):
+            passed_over.append({"name": site.name,
+                                "reason": "No website to look at"})
+            index += 1
+            continue
+        if lookups >= max_lookups:
+            break
+
+        # Read the next few sites that need it in one polite pass, then come
+        # back to this same one -- ``already_read`` is what ends the loop.
+        room = min(max(target - len(sendable), 4), max_lookups - lookups)
+        chunk: List[Site] = []
+        for later in pool[index:]:
+            if len(chunk) >= room:
+                break
+            later_address, later_problem = _reachability(db, later)
+            if later.id in already_read or later_address or later_problem:
+                continue
+            if not _website_for(later):
+                continue
+            chunk.append(later)
+            already_read.add(later.id)
+        if not chunk:
+            break
+
+        from .enrich import enrich_sites
+
+        say(f"{len(sendable)} of {target} ready — reading "
+            f"{len(chunk)} business website(s)...")
+        found = enrich_sites(settings, db, chunk, progress=say)
+        lookups += len(chunk)
+        contacts_found += found.emails_found
+
+    return {"sites": sendable, "passed_over": passed_over, "lookups": lookups,
+            "contacts_found": contacts_found, "pool": len(pool)}
+
+
 def plan(
     settings: Settings,
     db,
@@ -107,9 +228,16 @@ def plan(
     count: int = 20,
     min_score: float = 65.0,
 ) -> AutopilotPlan:
-    """Work out what a run would do, so it can be shown before it happens."""
+    """Work out what a run would do, so it can be shown before it happens.
+
+    Reads nothing over the network -- it sorts the ranked list into the three
+    groups a run would meet, so the dialog can say how many are reachable now
+    and how many websites it would have to read to fill the rest.
+    """
     gate = check_send_gate(db, identity, smtp.is_configured)
+    batch = max(0, min(count, gate.remaining_today or count))
     result = AutopilotPlan(
+        target=batch,
         daily_cap=gate.daily_cap,
         sent_today=gate.sent_today,
         remaining=gate.remaining_today,
@@ -117,18 +245,26 @@ def plan(
         has_ever_sent=db.outreach_stats().get("sent", 0) > 0,
     )
 
-    batch = max(0, min(count, gate.remaining_today or count))
-    for site in candidates(db, batch, min_score):
-        address = _address_for(db, site)
+    budget = max(batch * 5, 30)
+    for site in candidates(db, max(batch * 8, 60), min_score):
+        address, problem = _reachability(db, site)
         entry = {
             "site_id": site.id, "name": site.name, "score": site.score,
             "grade": site.grade, "type": site.category_label,
             "address": site.address, "email": address,
         }
-        if address and not recipient_problem(db, address, site.id):
+        if address:
             result.ready.append(entry)
-        else:
+            if len(result.ready) >= batch:
+                break                     # no lookups needed past this point
+        elif problem:
+            entry["reason"] = problem
+            result.no_contact.append(entry)
+        elif _website_for(site) and len(result.need_lookup) < budget:
             result.need_lookup.append(entry)
+        else:
+            entry["reason"] = "No website to look at"
+            result.no_contact.append(entry)
 
     if result.ready or result.need_lookup:
         from .outreach.templates import build_context, render, sequence_steps
@@ -173,29 +309,13 @@ def run(
         ]
         return result
 
-    say("Choosing the best prospects nobody has approached...")
-    chosen = candidates(db, batch, min_score)
-    result.picked = len(chosen)
-    if not chosen:
-        return result
-
-    missing = [s for s in chosen if not _address_for(db, s)]
-    if missing:
-        from .enrich import enrich_sites
-
-        say(f"Looking up contact details for {len(missing)} business(es)...")
-        found = enrich_sites(settings, db, missing, progress=say)
-        result.looked_up = found.checked
-        result.contacts_found = found.emails_found
-
-    sendable: List[Site] = []
-    for site in chosen:
-        address = _address_for(db, site)
-        problem = recipient_problem(db, address, site.id)
-        if problem:
-            result.skipped.append({"name": site.name, "reason": problem})
-            continue
-        sendable.append(site)
+    say("Finding the best prospects we can actually email...")
+    gathered = collect_sendable(settings, db, batch, min_score, progress=say)
+    sendable: List[Site] = gathered["sites"]
+    result.picked = len(sendable)
+    result.looked_up = gathered["lookups"]
+    result.contacts_found = gathered["contacts_found"]
+    result.skipped = list(gathered["passed_over"])
 
     if not sendable:
         return result

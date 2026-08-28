@@ -307,7 +307,11 @@ def create_app(settings: Optional[Settings] = None, public: bool = False) -> Fla
             return jsonify({
                 "ready": result.ready,
                 "need_lookup": result.need_lookup,
+                "no_contact": result.no_contact[:40],
+                "no_contact_total": len(result.no_contact),
                 "total": result.total_candidates,
+                "target": result.target,
+                "will_write_to": result.will_write_to,
                 "daily_cap": result.daily_cap,
                 "sent_today": result.sent_today,
                 "remaining": result.remaining,
@@ -336,6 +340,7 @@ def create_app(settings: Optional[Settings] = None, public: bool = False) -> Fla
             return {
                 "summary": result.summary,
                 "picked": result.picked,
+                "looked_up": result.looked_up,
                 "contacts_found": result.contacts_found,
                 "enrolled": result.enrolled,
                 "sent": result.sent,
