@@ -57,6 +57,30 @@ or go to:   https://www.python.org/downloads/
 Install it, then start Machine Locator again.
 
 
+TO USE IT ON YOUR IPAD OR PHONE
+-------------------------------
+
+There is a second launcher for this:
+
+  MAC       RIGHT-CLICK  "Machine Locator on iPad.command"  ->  Open
+  WINDOWS   double-click "Machine Locator on iPad.bat"
+
+It shows a web address and a QR code. On the iPad, either point the
+camera at the QR code, or open Safari and type the address in.
+
+  - Both devices must be on the same Wi-Fi.
+  - This computer has to stay on, with the black window open. The iPad
+    is just showing you what the computer is doing.
+  - The first time, your computer will ask whether to allow incoming
+    connections. Say Allow / Allow access, or the iPad can't reach it.
+  - The first time on the iPad it asks you to pick a password, because
+    now other devices in the house could reach it too. Pick one, and it
+    remembers you after that.
+
+TIP: in Safari, tap the Share button and choose "Add to Home Screen".
+Then it opens like a normal app, no address to type again.
+
+
 FIRST THINGS TO DO IN THE APP
 -----------------------------
 

@@ -17,6 +17,7 @@ dependencies = [
     "PyYAML>=6.0",
     "Flask>=3.0",
     "rich>=13.7",
+    "qrcode>=7.4",
 ]
 
 [project.optional-dependencies]

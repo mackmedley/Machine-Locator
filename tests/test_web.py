@@ -441,3 +441,53 @@ def test_today_does_not_repeat_queued_emails_as_human_tasks(configured):
     data = configured.get("/api/today").get_json()
     assert data["due_emails"] == 1
     assert [a["site_id"] for a in data["actions"]] == []
+
+
+# --------------------------------------------------- reaching it from an iPad
+
+def test_lan_address_is_a_real_address():
+    """0.0.0.0 means "every interface" and is not something anyone can type
+    into Safari, so the launcher has to resolve a usable one."""
+    from machine_locator.lan import local_ip
+
+    address = local_ip()
+    assert address is None or not address.startswith("127.")
+
+
+def test_banner_names_the_address_to_open():
+    from machine_locator.lan import banner, local_ip
+
+    text = banner(5000)
+    address = local_ip()
+    if address:
+        assert f"http://{address}:5000" in text
+        assert "same Wi-Fi" in text
+    else:
+        assert "network address" in text
+
+
+def test_banner_survives_without_the_qr_library(monkeypatch):
+    """The address alone is enough; a missing optional dependency must not
+    take the whole launcher down."""
+    import builtins
+
+    from machine_locator.lan import banner, qr_lines
+
+    real_import = builtins.__import__
+
+    def no_qrcode(name, *args, **kwargs):
+        if name == "qrcode":
+            raise ImportError("not installed")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", no_qrcode)
+    assert qr_lines("http://example.test") == []
+    assert "http" in banner(5000) or "network address" in banner(5000)
+
+
+def test_qr_renders_when_available():
+    from machine_locator.lan import qr_lines
+
+    lines = qr_lines("http://192.168.1.50:5000")
+    # Either the library is absent (empty) or we get a square-ish block.
+    assert lines == [] or (len(lines) > 6 and all(len(l) == len(lines[0]) for l in lines))

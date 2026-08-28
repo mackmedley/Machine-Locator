@@ -644,7 +644,14 @@ def _serve(
     # the app walks you through setting one on first open.
     public = not is_loopback(host)
     app = create_app(settings, public=public)
-    url = f"http://{host}:{port}"
+    # 0.0.0.0 means "every interface", which is not an address anyone can
+    # type. Show the one another device on the network would actually use.
+    display_host = host
+    if host in ("0.0.0.0", "::"):
+        from .lan import local_ip
+
+        display_host = local_ip() or "your-computer-ip"
+    url = f"http://{display_host}:{port}"
 
     if friendly:
         # Somebody who double-clicked an icon should not be told their app is

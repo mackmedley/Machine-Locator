@@ -692,7 +692,8 @@ table.data td, .result .meta, .kcard .meta, .today-item .stat-sub,
   .filters label { font-size: 12px; }
   .filters input[type="search"], .filters select { min-width: 0; flex: 1 1 130px; }
 
-  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-2 { grid-template-columns: 1fr; }
   .stat-value { font-size: 27px; }
 
   /* Buttons and rows need a real touch target. */
@@ -705,6 +706,11 @@ table.data td, .result .meta, .kcard .meta, .today-item .stat-sub,
   .drawer { width: 100%; }
   .modal { padding: 10px; }
   .modal > .card { max-height: 92vh; }
+}
+
+@media (max-width: 620px) {
+  /* Below this, two columns start truncating numbers -- go to one. */
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {

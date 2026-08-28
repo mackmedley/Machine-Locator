@@ -36,6 +36,23 @@ including what to do if it says Python isn't installed.
 **[Or try the interactive preview first →](https://claude.ai/code/artifact/81ee93e6-7bbf-4be9-a171-daa503774da4)**
 — the real interface on sample data, from any device, nothing to install.
 
+### Using it on an iPad or phone
+
+There's a second launcher for that — **`Machine Locator on iPad.command`**
+(Mac) or **`.bat`** (Windows). It prints a web address and a QR code: point the
+iPad camera at the code, or type the address into Safari.
+
+Your computer does the work and the iPad just displays it, so the computer has
+to stay on with the launcher window open, and both devices need to be on the
+same Wi-Fi. Nothing goes over the internet and nothing is installed on the iPad.
+
+Two things happen the first time: your computer asks whether to allow incoming
+connections (say **Allow** — the iPad can't reach it otherwise), and the app
+asks you to pick a password, because other devices in the house can now reach
+it too.
+
+In Safari, **Share → Add to Home Screen** makes it open like a normal app.
+
 ![The dashboard](docs/dashboard.png)
 
 ---
