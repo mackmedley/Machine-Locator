@@ -56,28 +56,20 @@ if not exist ".venv\Scripts\mloc.exe" (
     ".venv\Scripts\python.exe" -m pip install --quiet -e .
     if errorlevel 1 goto setupfailed
     echo   Done. That was a one-time step.
+    echo.
 )
 
-REM --- show the address, then serve it --------------------------------------
-".venv\Scripts\python.exe" -m machine_locator.lan 5000
-
-echo   Windows may ask whether to allow this through the firewall.
-echo   Tick "Private networks" and click Allow access -- the iPad
-echo   cannot reach it otherwise.
-echo.
-echo   The first time, it will ask you to pick a password. Do that on
-echo   the iPad, then it remembers you.
-echo.
-echo   IF THE IPAD SHOWS A BLANK OR "CANNOT CONNECT" PAGE:
-echo     1. Type the address EXACTLY as printed above. It is this
-echo        computer's own address and is different on every network.
-echo     2. Answer the firewall box if one is waiting.
-echo     3. Check the iPad is on the same Wi-Fi, not cellular.
-echo.
-echo   Leave this window open. Closing it stops the app.
+echo   If Windows asks whether to allow this through the firewall, tick
+echo   "Private networks" and click Allow access. The iPad cannot reach
+echo   it otherwise.
 echo.
 
-".venv\Scripts\mloc.exe" serve --host 0.0.0.0 --port 5000
+REM --- start serving, then prove the iPad can actually reach it -------------
+REM Binding to the Wi-Fi and being reachable over it are different things,
+REM so this checks the second one and prints what is wrong if it fails,
+REM rather than leaving a blank page on the iPad with no explanation.
+".venv\Scripts\python.exe" -m machine_locator.lan --serve
+
 echo.
 echo   Machine Locator has stopped.
 pause

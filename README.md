@@ -55,6 +55,14 @@ connections (say **Allow** — the iPad can't reach it otherwise), and the app
 asks you to pick a password, because other devices in the house can now reach
 it too.
 
+The launcher checks its own work. Once the app is up it tries to reach the
+computer on that network address — the way the iPad will — and only prints the
+address after it gets an answer. If it can't, it says which of the three usual
+causes it is (an unanswered firewall box, different networks, or a guest Wi-Fi
+that walls devices off) instead of leaving you looking at a blank Safari page.
+On Windows it also prints the one-line command that undoes a firewall box you
+already said No to, since Windows never asks a second time.
+
 In Safari, **Share → Add to Home Screen** makes it open like a normal app.
 
 ![The dashboard](docs/dashboard.png)

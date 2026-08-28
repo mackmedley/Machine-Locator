@@ -6,14 +6,21 @@ app's own behaviour changing.
 
 Run it directly:
 
-    python -m machine_locator.lan 5000
+    python -m machine_locator.lan 5000        # print the address to open
+    python -m machine_locator.lan --serve     # start it and check it is reachable
+    python -m machine_locator.lan --verify 5000
 """
 
 from __future__ import annotations
 
+import os
 import socket
+import subprocess
 import sys
-from typing import List, Optional
+import time
+from typing import List, Optional, Sequence
+
+DEFAULT_PORTS = (5000, 5050, 8080, 8000, 8800)
 
 
 def local_ip() -> Optional[str]:
@@ -137,7 +144,7 @@ def reachable(port: int, timeout: float = 1.5) -> bool:
 def trouble(port: int) -> str:
     """Shown when the address does not answer, so the window the user is
     already looking at explains itself."""
-    return "\n".join([
+    lines = [
         "",
         "  Could not reach this computer on its own network address.",
         "",
@@ -150,9 +157,124 @@ def trouble(port: int) -> str:
         "    3. Some guest and public Wi-Fi networks block devices from",
         "       seeing each other. A home network normally does not.",
         "",
+    ]
+    if sys.platform.startswith("win"):
+        # Windows only asks about the firewall once. Say No -- or miss the box
+        # entirely -- and it never asks again, which is exactly the silent
+        # blank page this is here to explain.
+        lines += [
+            "  If you already answered No, Windows will not ask again. To undo",
+            "  it: press Start, type powershell, right-click Windows PowerShell,",
+            "  choose 'Run as administrator', and paste this one line:",
+            "",
+            "    New-NetFirewallRule -DisplayName 'Machine Locator' "
+            f"-Direction Inbound -Protocol TCP -LocalPort {port} "
+            "-Profile Private -Action Allow",
+            "",
+            "  Then reload the page on the iPad.",
+            "",
+        ]
+    lines += [
         "  The app is still running -- it just may not be reachable yet.",
         "",
-    ])
+    ]
+    return "\n".join(lines)
+
+
+def free_port(choices: Sequence[int] = DEFAULT_PORTS) -> int:
+    """The first of these ports nothing else is already using."""
+    for port in choices:
+        sock = socket.socket()
+        try:
+            sock.bind(("0.0.0.0", port))
+            return port
+        except OSError:
+            continue
+        finally:
+            sock.close()
+    return choices[0]
+
+
+def wait_until_reachable(port: int, process=None, attempts: int = 40,
+                         delay: float = 0.5) -> bool:
+    """Wait for the network address to answer, giving up after a while.
+
+    Stops early if the server died, so a crash is reported as a crash rather
+    than as twenty seconds of waiting followed by firewall advice.
+    """
+    for _ in range(attempts):
+        if process is not None and process.poll() is not None:
+            return False
+        if reachable(port, timeout=0.6):
+            return True
+        time.sleep(delay)
+    return False
+
+
+def _clear() -> None:
+    try:
+        os.system("cls" if os.name == "nt" else "clear")
+    except Exception:
+        pass                          # a cluttered window still works fine
+
+
+def _stop(process) -> None:
+    if process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+
+
+def serve(port: int = 0) -> int:
+    """Start the app on the Wi-Fi, then prove the iPad can actually reach it.
+
+    Binding to every interface and being reachable are different things -- a
+    firewall sits between them -- so this checks the second one and says what
+    is wrong instead of leaving a blank page on the iPad unexplained.
+    """
+    port = port or free_port()
+    command = [sys.executable, "-m", "machine_locator.cli", "serve",
+               "--host", "0.0.0.0", "--port", str(port)]
+    print("  Starting up...")
+    try:
+        process = subprocess.Popen(command)
+    except OSError as exc:
+        print(f"\n  Could not start Machine Locator: {exc}\n")
+        return 1
+
+    try:
+        up = wait_until_reachable(port, process)
+        if process.poll() is not None:
+            print("\n  The app stopped while starting up.")
+            print("  The messages above say why.\n")
+            return 1
+
+        _clear()
+        print()
+        print("  Machine Locator -- on your iPad")
+        print("  -------------------------------")
+        if up:
+            print(banner(port))
+            print("  Checked: this computer is answering on that address.")
+            print()
+            print("  The first time, the iPad will ask you to pick a password.")
+            print("  Choose one and it remembers you after that.")
+        else:
+            print(trouble(port))
+            print("  Once you have fixed that, reload the page on the iPad --")
+            print("  there is no need to restart this.")
+        print()
+        print("  Leave this window open. Closing it stops the app.")
+        print()
+        process.wait()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        _stop(process)
+    return 0
 
 
 def main() -> int:
@@ -174,6 +296,9 @@ def main() -> int:
             return 1
         print(address)
         return 0
+
+    if mode == "--serve":
+        return serve(port if args else 0)
 
     if mode == "--verify":
         if reachable(port):

@@ -74,4 +74,13 @@ USING IT ON AN IPAD OR PHONE
 
 There is a second launcher for that - "Machine Locator on iPad".
 Your computer has to stay on and both devices on the same Wi-Fi.
+
+It prints a web address and a QR code. Point the iPad camera at the
+code, or type the address into Safari.
+
+Say ALLOW if your computer asks about incoming connections - the
+iPad cannot reach it otherwise. If the iPad still shows a blank
+page, read the launcher window: it checks whether the iPad can
+actually reach this computer and prints what to fix.
+
 See README.md.
