@@ -81,6 +81,27 @@ TIP: in Safari, tap the Share button and choose "Add to Home Screen".
 Then it opens like a normal app, no address to type again.
 
 
+IF THE IPAD SHOWS A BLANK OR "CANNOT CONNECT" PAGE
+--------------------------------------------------
+
+  1. Use the address the launcher printed on YOUR screen. It is this
+     computer's own address, it is different on every network, and any
+     address written in an email or a guide is only an example.
+
+  2. Look for a box on the computer asking whether to allow incoming
+     network connections, and say Allow / Allow access. The iPad cannot
+     reach it until you do.
+
+  3. Check the iPad is on the same Wi-Fi as the computer - not on
+     cellular data, and not on a guest network.
+
+  4. Check the launcher window says "Checked: this computer is
+     answering on that address." If it says it could not reach it, the
+     window tells you what to fix.
+
+  Once fixed, just reload the page on the iPad. No need to restart.
+
+
 FIRST THINGS TO DO IN THE APP
 -----------------------------
 

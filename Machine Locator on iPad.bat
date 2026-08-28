@@ -68,6 +68,14 @@ echo.
 echo   The first time, it will ask you to pick a password. Do that on
 echo   the iPad, then it remembers you.
 echo.
+echo   IF THE IPAD SHOWS A BLANK OR "CANNOT CONNECT" PAGE:
+echo     1. Type the address EXACTLY as printed above. It is this
+echo        computer's own address and is different on every network.
+echo     2. Answer the firewall box if one is waiting.
+echo     3. Check the iPad is on the same Wi-Fi, not cellular.
+echo.
+echo   Leave this window open. Closing it stops the app.
+echo.
 
 ".venv\Scripts\mloc.exe" serve --host 0.0.0.0 --port 5000
 echo.

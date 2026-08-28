@@ -491,3 +491,32 @@ def test_qr_renders_when_available():
     lines = qr_lines("http://192.168.1.50:5000")
     # Either the library is absent (empty) or we get a square-ish block.
     assert lines == [] or (len(lines) > 6 and all(len(l) == len(lines[0]) for l in lines))
+
+
+def test_reachable_reports_false_when_nothing_listens():
+    from machine_locator.lan import reachable
+
+    # A port nothing is bound to must read as unreachable, so the launcher
+    # tells the user rather than sending them to the iPad for a blank page.
+    assert reachable(59999, timeout=0.3) is False
+
+
+def test_trouble_text_names_the_three_real_causes():
+    from machine_locator.lan import trouble
+
+    text = trouble(5000).lower()
+    assert "firewall" in text
+    assert "same" in text and "wi-fi" in text
+    assert "blank" in text
+
+
+def test_setup_page_needs_no_javascript(settings):
+    """A blank setup page can only mean it never loaded -- there is no script
+    on it that could fail and blank it."""
+    from machine_locator.web.app import create_app
+
+    app = create_app(settings, public=True)
+    app.config["TESTING"] = True
+    body = app.test_client().get("/setup").get_data(as_text=True)
+    assert "<script" not in body.lower()
+    assert "Pick a password" in body

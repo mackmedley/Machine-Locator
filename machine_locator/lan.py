@@ -112,19 +112,76 @@ def banner(port: int = 5000) -> str:
 
     out += [
         "  Both devices must be on the same Wi-Fi.",
-        "  Leave this window open. Closing it stops the app.",
         "",
     ]
     return "\n".join(out)
 
 
+def reachable(port: int, timeout: float = 1.5) -> bool:
+    """Can something actually connect to us on the network address?
+
+    Checked over the real interface rather than localhost, because binding
+    correctly and being reachable are different things -- a firewall sits
+    between them.
+    """
+    address = local_ip()
+    if not address:
+        return False
+    try:
+        with socket.create_connection((address, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def trouble(port: int) -> str:
+    """Shown when the address does not answer, so the window the user is
+    already looking at explains itself."""
+    return "\n".join([
+        "",
+        "  Could not reach this computer on its own network address.",
+        "",
+        "  The iPad would see a blank or 'cannot connect' page. Usually:",
+        "",
+        "    1. A firewall prompt is waiting for an answer. Look for a box",
+        "       asking whether to allow incoming connections, and say Allow.",
+        "    2. This computer is on a wired connection or a different Wi-Fi",
+        "       network from the iPad. They have to be on the same one.",
+        "    3. Some guest and public Wi-Fi networks block devices from",
+        "       seeing each other. A home network normally does not.",
+        "",
+        "  The app is still running -- it just may not be reachable yet.",
+        "",
+    ])
+
+
 def main() -> int:
+    args = [a for a in sys.argv[1:]]
+    mode = ""
+    if args and args[0].startswith("--"):
+        mode = args.pop(0)
+
     port = 5000
-    if len(sys.argv) > 1:
+    if args:
         try:
-            port = int(sys.argv[1])
+            port = int(args[0])
         except ValueError:
             pass
+
+    if mode == "--ip":
+        address = local_ip()
+        if not address:
+            return 1
+        print(address)
+        return 0
+
+    if mode == "--verify":
+        if reachable(port):
+            print(f"  Confirmed: reachable at http://{local_ip()}:{port}")
+            return 0
+        print(trouble(port))
+        return 1
+
     print(banner(port))
     return 0
 
