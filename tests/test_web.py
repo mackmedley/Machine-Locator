@@ -520,3 +520,80 @@ def test_setup_page_needs_no_javascript(settings):
     body = app.test_client().get("/setup").get_data(as_text=True)
     assert "<script" not in body.lower()
     assert "Pick a password" in body
+
+
+# ------------------------------------------------- routes-for-sale filtering
+
+def test_listings_report_facets_so_empty_can_explain_itself(client):
+    """An empty result from filters and an empty database need opposite
+    responses from the user, so the page must be able to tell them apart."""
+    data = client.get("/api/listings?min_relevance=99").get_json()
+    assert data["count"] == 0
+    assert data["facets"]["total"] == 2      # stored, just hidden
+    assert data["facets"]["local"] == 1
+
+
+def test_facets_report_zero_on_an_empty_database(settings):
+    from machine_locator.web.app import create_app
+
+    app = create_app(settings)
+    app.config["TESTING"] = True
+    data = app.test_client().get("/api/listings").get_json()
+    assert data["facets"]["total"] == 0
+
+
+def test_default_view_is_not_filtered_into_silence(client):
+    """The old defaults hid non-metro and lower-scoring listings, so a first
+    run looked like a total failure."""
+    data = client.get("/api/listings").get_json()
+    assert data["count"] == 2
+
+
+def test_price_range_filter(client):
+    assert client.get("/api/listings?max_price=100000").get_json()["count"] == 1
+    assert client.get("/api/listings?min_price=100000").get_json()["count"] == 1
+    assert client.get("/api/listings?min_price=1&max_price=999999").get_json()["count"] == 2
+
+
+def test_minimum_machines_filter(client):
+    assert client.get("/api/listings?min_machines=10").get_json()["count"] == 1
+    assert client.get("/api/listings?min_machines=999").get_json()["count"] == 0
+
+
+def test_has_financials_filter(client):
+    # Only the first listing carries a cash-flow figure.
+    assert client.get("/api/listings?with_financials=1").get_json()["count"] == 1
+
+
+def test_search_filter(client):
+    assert client.get("/api/listings?search=Texas").get_json()["count"] == 1
+    assert client.get("/api/listings?search=nothing-like-this").get_json()["count"] == 0
+
+
+def test_source_filter_and_facet_counts(client):
+    data = client.get("/api/listings").get_json()
+    assert data["facets"]["sources"][0]["source"] == "demo"
+    assert client.get("/api/listings?source=demo").get_json()["count"] == 2
+    assert client.get("/api/listings?source=nope").get_json()["count"] == 0
+
+
+def test_unpriced_listings_are_excluded_from_a_price_filter(client, seeded):
+    """A listing with no price is not a cheap one."""
+    from machine_locator.db import Database
+    from machine_locator.models import RouteListing
+
+    with Database(seeded.db_path) as database:
+        database.upsert_listings([RouteListing(
+            id="c", source="demo", title="Vending route, price on request",
+            url="https://example.org/3", relevance=80.0, is_local=True,
+        )])
+    assert client.get("/api/listings?max_price=999999").get_json()["count"] == 2
+    assert client.get("/api/listings").get_json()["count"] == 3
+
+
+def test_more_marketplaces_are_configured():
+    from machine_locator.routes.registry import load_source_configs
+
+    names = {c["name"] for c in load_source_configs()}
+    assert {"bizroutes", "dealstream", "businessmart"} <= names
+    assert len(names) >= 12

@@ -8,10 +8,12 @@ second front door, not a replacement.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 from flask import Flask, jsonify, render_template, request, send_file, session
+
+import json
 
 from ..config import SEED_SETTINGS, Settings
 from ..db import PIPELINE_STAGES, STAGE_KEYS, Database
@@ -33,6 +35,14 @@ from ..outreach.templates import (
 from . import auth
 
 STAGE_LABELS = dict(PIPELINE_STAGES)
+
+
+def _loads_setting(database, key):
+    """A JSON setting, or an empty list when it has never been written."""
+    try:
+        return json.loads(database.get_setting(key, "") or "[]")
+    except ValueError:
+        return []
 
 
 def create_app(settings: Optional[Settings] = None, public: bool = False) -> Flask:
@@ -182,11 +192,20 @@ def create_app(settings: Optional[Settings] = None, public: bool = False) -> Fla
             identity, smtp = identity_and_smtp(database)
             gate = check_send_gate(database, identity, smtp.is_configured)
             due_mail = database.query_messages(status="queued", due_only=True, limit=200)
+            # How many good prospects cannot be emailed only because nobody
+            # has an address yet -- the step this app can do for you.
+            missing = database.conn.execute(
+                "SELECT COUNT(*) c FROM sites s "
+                "LEFT JOIN pipeline p ON p.site_id = s.id "
+                "WHERE s.score >= 65 AND (s.email IS NULL OR s.email = '') "
+                "  AND (p.contact_email IS NULL OR p.contact_email = '')"
+            ).fetchone()["c"]
             return jsonify({
                 "due_emails": len(due_mail),
                 "actions": database.due_actions(),
                 "replies": database.awaiting_reply_followup(),
                 "failed": database.outreach_stats().get("failed", 0),
+                "missing_contacts": missing,
                 "can_send": gate.allowed,
                 "send_blocked_because": gate.reasons,
             })
@@ -237,6 +256,12 @@ def create_app(settings: Optional[Settings] = None, public: bool = False) -> Fla
             )
             blocked = [f"{r.label}: {r.skipped or r.error}"
                        for r in result.reports if r.skipped or r.error]
+            database.set_setting("last_route_sources", json.dumps([
+                {"name": r.name, "label": r.label, "status": r.status,
+                 "found": len(r.listings), "why": r.skipped or r.error,
+                 "fallback": r.used_fallback}
+                for r in result.reports
+            ]))
             return {
                 "summary": f"{result.count} listing(s), {len(result.new_listings)} new",
                 "found": result.count,
@@ -267,6 +292,36 @@ def create_app(settings: Optional[Settings] = None, public: bool = False) -> Fla
             }
 
         return _start("send-queue", job, "Sending outreach...")
+
+    @app.route("/api/jobs/find-contacts", methods=["POST"])
+    def api_job_find_contacts() -> Any:
+        """Read each prospect's own website for the contact details it lists."""
+        payload = request.get_json(silent=True) or {}
+        limit = max(1, min(400, int(payload.get("limit") or 60)))
+        min_score = float(payload.get("min_score") or 0)
+        site_ids = payload.get("site_ids") or []
+
+        def job(database: Database, report) -> Dict[str, Any]:
+            from ..enrich import enrich_sites
+
+            if site_ids:
+                wanted = set(site_ids)
+                sites = [s for s in database.query_sites(limit=100_000) if s.id in wanted]
+            else:
+                # Best prospects first -- these are the ones worth the lookups.
+                sites = database.query_sites(limit=limit, min_score=min_score)
+            result = enrich_sites(settings, database, sites, progress=lambda m: report(m))
+            return {
+                "summary": result.summary,
+                "checked": result.checked,
+                "emails": result.emails_found,
+                "phones": result.phones_found,
+                "no_website": result.no_website,
+                "nothing_found": result.nothing_found,
+                "details": result.details[:60],
+            }
+
+        return _start("find-contacts", job, "Reading business websites...")
 
     @app.route("/api/jobs/check-replies", methods=["POST"])
     def api_job_check_replies() -> Any:
@@ -586,16 +641,31 @@ def create_app(settings: Optional[Settings] = None, public: bool = False) -> Fla
 
     @app.route("/api/listings")
     def api_listings() -> Any:
+        since = None
+        days = request.args.get("since_days", type=int)
+        if days:
+            since = (datetime.now(timezone.utc)
+                     - timedelta(days=days)).isoformat(timespec="seconds")
         with db() as database:
             listings = database.query_listings(
                 limit=request.args.get("limit", default=300, type=int),
                 min_relevance=request.args.get("min_relevance", default=0.0, type=float),
                 local_only=request.args.get("local_only") == "1",
                 max_price=request.args.get("max_price", type=float),
+                min_price=request.args.get("min_price", type=float),
+                min_machines=request.args.get("min_machines", type=int),
+                with_financials=request.args.get("with_financials") == "1",
+                search=request.args.get("search") or None,
+                source=request.args.get("source") or None,
+                since=since,
             )
+            # The facets travel with every response so an empty list can say
+            # whether the filters hid everything or nothing was ever found.
             return jsonify({
                 "count": len(listings),
                 "listings": [l.to_dict() for l in listings],
+                "facets": database.listing_facets(),
+                "sources_status": _loads_setting(database, "last_route_sources"),
             })
 
     @app.route("/api/listings/import", methods=["POST"])

@@ -128,3 +128,62 @@ sources:
       - "https://www.vendingconnection.com/classifieds/vending-routes-for-sale/"
     item_selector: ""
     notes: Long-running industry classifieds board.
+
+  - name: bizroutes
+    type: html
+    label: BizRoutes
+    enabled: true
+    verify: true
+    urls:
+      - "https://www.bizroutes.com/vending-machine-routes-for-sale"
+      - "https://www.bizroutes.com/routes-for-sale/oklahoma"
+    item_selector: ""
+    notes: >
+      A marketplace specifically for routes rather than businesses in general,
+      so almost everything here is on-topic and relevance scores run high.
+
+  - name: dealstream
+    type: html
+    label: DealStream
+    enabled: true
+    verify: true
+    urls:
+      - "https://dealstream.com/vending-machine-businesses-for-sale"
+      - "https://dealstream.com/oklahoma-businesses-for-sale"
+    item_selector: ""
+    notes: Broker and owner listings; smaller but often not on the big portals.
+
+  - name: businessmart
+    type: html
+    label: BusinessMart
+    enabled: true
+    verify: true
+    urls:
+      - "https://www.businessmart.com/vending-businesses-for-sale.php"
+      - "https://www.businessmart.com/oklahoma-businesses-for-sale.php"
+    item_selector: ""
+    notes: Long-running listings site with a vending category.
+
+  - name: vendingmarketwatch
+    type: html
+    label: Vending Market Watch
+    enabled: true
+    verify: true
+    urls:
+      - "https://www.vendingmarketwatch.com/classifieds"
+    item_selector: ""
+    notes: >
+      Trade-magazine classifieds. Low volume, but operators selling up often
+      list here before they pay for a broker.
+
+  - name: craigslist_oklahoma_wider
+    type: rss
+    label: Craigslist -- rest of Oklahoma
+    enabled: false
+    default_location: Oklahoma
+    urls:
+      - "https://lawton.craigslist.org/search/bfs?query=vending&format=rss"
+      - "https://stillwater.craigslist.org/search/bfs?query=vending&format=rss"
+    notes: >
+      Smaller Oklahoma markets. Off by default -- a route two hours away is a
+      different business. Turn it on if you would move the machines.

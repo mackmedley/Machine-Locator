@@ -6,6 +6,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
     Find prospects
   </button>
+  <button class="btn" id="btn-contacts">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Find contact details
+  </button>
   <a class="btn" href="/download/prospects.csv">Export CSV</a>
   <a class="btn" href="/download/prospects.geojson">Map file</a>
 {% endblock %}
@@ -37,6 +41,7 @@
   <strong><span id="sel-count">0</span> selected</strong>
   <div class="spacer"></div>
   <button class="btn btn-sm" id="btn-clear-sel">Clear</button>
+  <button class="btn btn-sm" id="btn-contacts-sel">Find their details</button>
   <button class="btn btn-sm btn-primary" id="btn-outreach-sel">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
     Start outreach

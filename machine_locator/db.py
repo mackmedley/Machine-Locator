@@ -341,6 +341,10 @@ class Database:
         local_only: bool = False,
         since: Optional[str] = None,
         max_price: Optional[float] = None,
+        min_price: Optional[float] = None,
+        min_machines: Optional[int] = None,
+        with_financials: bool = False,
+        search: Optional[str] = None,
     ) -> List[RouteListing]:
         sql = "SELECT * FROM route_listings WHERE relevance >= ?"
         params: List[Any] = [min_relevance]
@@ -352,12 +356,46 @@ class Database:
         if since:
             sql += " AND first_seen >= ?"
             params.append(since)
+        # A listing with no price is not a cheap one, so a price filter
+        # excludes the unpriced rather than treating them as zero.
         if max_price is not None:
             sql += " AND price IS NOT NULL AND price <= ?"
             params.append(max_price)
+        if min_price is not None:
+            sql += " AND price IS NOT NULL AND price >= ?"
+            params.append(min_price)
+        if min_machines is not None:
+            sql += " AND machine_count IS NOT NULL AND machine_count >= ?"
+            params.append(min_machines)
+        if with_financials:
+            sql += " AND (cash_flow IS NOT NULL OR gross_revenue IS NOT NULL)"
+        if search:
+            sql += " AND (title LIKE ? OR description LIKE ? OR location_text LIKE ?)"
+            params.extend([f"%{search}%"] * 3)
         sql += " ORDER BY relevance DESC, first_seen DESC LIMIT ?"
         params.append(limit)
         return [_row_to_listing(r) for r in self.conn.execute(sql, params)]
+
+    def listing_facets(self) -> Dict[str, Any]:
+        """What is actually stored, so an empty result can explain itself.
+
+        Without this, filters that hide everything look exactly like finding
+        nothing at all -- and those need opposite responses from the user.
+        """
+        def scalar(sql: str) -> int:
+            return int(self.conn.execute(sql).fetchone()[0])
+
+        return {
+            "total": scalar("SELECT COUNT(*) FROM route_listings"),
+            "local": scalar("SELECT COUNT(*) FROM route_listings WHERE is_local = 1"),
+            "priced": scalar("SELECT COUNT(*) FROM route_listings WHERE price IS NOT NULL"),
+            "sources": [
+                dict(r) for r in self.conn.execute(
+                    "SELECT source, COUNT(*) AS n FROM route_listings "
+                    "GROUP BY source ORDER BY n DESC"
+                )
+            ],
+        }
 
     # ------------------------------------------------------------------ runs
 

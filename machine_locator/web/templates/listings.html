@@ -12,26 +12,66 @@
 
 {% block body %}
 <div class="filters">
-  <label class="inline-field"><input type="checkbox" id="f-local" checked> OKC metro only</label>
+  <label><input type="search" id="f-q" placeholder="Search listings  ( / )"></label>
   <label>Min fit
-    <input type="range" id="f-rel" min="0" max="100" step="5" value="40" style="width:120px">
-    <output id="f-rel-out" class="num" style="min-width:24px">40</output>
+    <input type="range" id="f-rel" min="0" max="100" step="5" value="25" style="width:110px">
+    <output id="f-rel-out" class="num" style="min-width:24px">25</output>
   </label>
-  <label>Max asking <input type="number" id="f-price" placeholder="any" step="5000" min="0" style="width:120px"></label>
+  <label class="inline-field"><input type="checkbox" id="f-local"> OKC metro only</label>
+  <label class="inline-field"><input type="checkbox" id="f-fin"> Has revenue figures</label>
   <div class="spacer"></div>
+  <button class="btn btn-sm btn-ghost" id="btn-more">More filters</button>
   <span class="muted small" id="count"></span>
+</div>
+
+<div class="filters" id="more-filters" hidden>
+  <label>Price from <input type="number" id="f-pmin" placeholder="any" step="5000" min="0" style="width:110px"></label>
+  <label>to <input type="number" id="f-pmax" placeholder="any" step="5000" min="0" style="width:110px"></label>
+  <label>At least <input type="number" id="f-mach" placeholder="any" min="0" style="width:80px"> machines</label>
+  <label>Source
+    <select id="f-source"><option value="">Anywhere</option></select>
+  </label>
+  <label>Listed in the last
+    <select id="f-days">
+      <option value="">any time</option>
+      <option value="7">7 days</option>
+      <option value="30">30 days</option>
+      <option value="90">90 days</option>
+    </select>
+  </label>
+  <div class="spacer"></div>
+  <button class="btn btn-sm" id="btn-clear">Clear all filters</button>
 </div>
 
 <div class="card">
   <div class="table-wrap"><table class="data">
     <thead><tr>
-      <th>Fit</th><th>Listing</th><th class="num">Asking</th><th class="num">Cash flow</th>
+      <th class="num">Fit</th><th>Listing</th><th class="num">Asking</th><th class="num">Cash flow</th>
       <th class="num">Machines</th><th class="num">$/machine</th><th class="num">Multiple</th>
       <th>Where</th><th>Source</th><th>Seen</th>
     </tr></thead>
     <tbody id="rows"></tbody>
   </table></div>
   <div id="empty-state"></div>
+</div>
+
+<div class="card" id="source-card" style="margin-top:14px" hidden>
+  <div class="card-head">
+    <h2>Where it looked</h2>
+    <div class="spacer"></div>
+    <span class="muted small">Last time you checked</span>
+  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Marketplace</th><th>Result</th><th class="num">Found</th><th>Notes</th></tr></thead>
+    <tbody id="source-rows"></tbody>
+  </table></div>
+  <div class="card-body">
+    <p class="muted small" style="margin:0">
+      Several of these block automated access — that's normal and not a fault here.
+      For any that do, set up their free email alert and bring the results in with
+      <strong>Import CSV</strong>; imported listings are scored exactly the same way.
+    </p>
+  </div>
 </div>
 {% endblock %}
 

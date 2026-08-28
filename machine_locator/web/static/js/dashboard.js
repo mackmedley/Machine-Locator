@@ -149,6 +149,17 @@
         "</div>");
     }
 
+    if (data.missing_contacts) {
+      blocks.push(
+        "<div class='today-item'>" +
+          "<span class='today-n'>" + data.missing_contacts + "</span>" +
+          "<div><strong>good prospects with no email yet</strong>" +
+            "<div class='muted small'>Machine Locator can read their websites and " +
+            "fill these in for you.</div></div>" +
+          "<a class='btn btn-sm' href='/prospects'>Find them</a>" +
+        "</div>");
+    }
+
     (data.replies || []).forEach(function (r) {
       blocks.push(
         "<div class='today-item'>" +

@@ -267,6 +267,13 @@
                   return "<li>" + ML.esc(b.name) + " — " + ML.esc(b.problem) + "</li>";
                 }).join("") + "</ul></details>"
               : "") +
+            (blocked.filter(function (b) { return b.problem === "No email address on file"; }).length
+              ? "<div class='banner banner-info'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.9'><circle cx='12' cy='12' r='9'/><path d='M12 16v-4M12 8h.01'/></svg>" +
+                "<div class='spacer'>Some of these have no email yet. " +
+                "<strong>Find their details</strong> reads each business's own website " +
+                "and fills in what it publishes.</div>" +
+                "<button class='btn btn-sm' id='o-enrich'>Find their details</button></div>"
+              : "") +
             (first
               ? "<h3 style='margin:14px 0 8px'>Preview for " + ML.esc(first.name) + "</h3>" +
                 first.steps.map(function (step) {
@@ -286,6 +293,15 @@
             "<button class='btn' data-close>Cancel</button>" +
           "</div>" +
         "</div>", { centered: true });
+
+      var enrichBtn = panel.querySelector("#o-enrich");
+      if (enrichBtn) enrichBtn.onclick = function () {
+        var needIds = blocked
+          .filter(function (b) { return b.problem === "No email address on file"; })
+          .map(function (b) { return b.site_id; });
+        ML.drawer.close();
+        findContacts({ site_ids: needIds });
+      };
 
       var confirm = panel.querySelector("#o-confirm");
       if (confirm) confirm.onclick = function () {
@@ -327,6 +343,50 @@
   };
   document.getElementById("btn-scan").onclick = function () {
     ML.jobs.start("/api/jobs/scan", { territories: 4 }, load);
+  };
+
+  /* Reading a few hundred websites takes a while and hits other people's
+     servers, so it is a deliberate button rather than something that happens
+     on its own after every scan. */
+  function findContacts(body) {
+    ML.jobs.start("/api/jobs/find-contacts", body, function (job) {
+      var r = job.result || {};
+      load();
+      ML.drawer.open(
+        "<div class='card'><div class='card-head'><h2>Contact details</h2>" +
+          "<div class='spacer'></div><button class='icon-btn' data-close>&times;</button></div>" +
+        "<div class='card-body'>" +
+          "<div class='grid grid-3' style='margin-bottom:14px'>" +
+            "<div class='stat'><div class='stat-label'>Emails found</div>" +
+              "<div class='stat-value'>" + (r.emails || 0) + "</div></div>" +
+            "<div class='stat'><div class='stat-label'>Phone numbers</div>" +
+              "<div class='stat-value'>" + (r.phones || 0) + "</div></div>" +
+            "<div class='stat'><div class='stat-label'>Websites read</div>" +
+              "<div class='stat-value'>" + (r.checked || 0) + "</div></div>" +
+          "</div>" +
+          "<p class='small muted'>" +
+            (r.no_website || 0) + " had no website listed on the map, and " +
+            (r.nothing_found || 0) + " published no contact details. Those need a " +
+            "phone call or a walk-in — the scripts are on the Outreach page.</p>" +
+          "<p class='small muted'>Every address here was printed on that business's " +
+            "own website. Nothing is guessed: an invented address that bounces is " +
+            "what gets a sending domain marked as spam.</p>" +
+          ((r.details || []).length
+            ? "<table class='data'><thead><tr><th>Business</th><th>Email</th></tr></thead><tbody>" +
+              r.details.map(function (d) {
+                return "<tr><td>" + ML.esc(d.site) + "</td><td class='small'>" +
+                  ML.esc(d.email || "—") + "</td></tr>";
+              }).join("") + "</tbody></table>"
+            : "") +
+        "</div></div>", { centered: true });
+    });
+  }
+
+  document.getElementById("btn-contacts").onclick = function () {
+    findContacts({ limit: 60, min_score: Number(els.score.value) || 0 });
+  };
+  document.getElementById("btn-contacts-sel").onclick = function () {
+    findContacts({ site_ids: Array.from(selected) });
   };
 
   load();
