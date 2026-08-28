@@ -256,14 +256,22 @@ and the next step with a date.""",
 def install_builtins(db) -> int:
     """Load the built-in templates, without clobbering user edits.
 
-    A built-in the user has since edited keeps their version; the flag on the
-    row is what tells the two apart.
+    An untouched built-in is refreshed to the current wording, so improvements
+    to the copy reach existing installs -- otherwise a database created before
+    a change keeps the old text forever, which is how an install can carry on
+    sending a pitch that was deliberately rewritten.
+
+    A template the user has edited is never overwritten. The ``builtin`` flag
+    is what tells them apart: saving one from the Templates page clears it.
     """
     installed = 0
     for template in BUILTIN_TEMPLATES:
         existing = db.get_template(template["key"])
-        if existing:
-            continue
+        if existing and not existing.get("builtin"):
+            continue                      # the user made it theirs; leave it
+        if existing and existing.get("body") == template.get("body") \
+                and existing.get("subject") == template.get("subject"):
+            continue                      # already current, nothing to do
         db.upsert_template({**template, "builtin": True})
         installed += 1
     return installed

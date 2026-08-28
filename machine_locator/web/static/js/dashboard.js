@@ -217,6 +217,92 @@
     ML.jobs.start("/api/jobs/scan", { territories: 4 }, load);
   }
 
+  /* One button for the whole run. It still shows exactly what will go out
+     before anything sends -- the point is removing the picking, not removing
+     the chance to look. */
+  function autopilot() {
+    ML.api("/api/autopilot/plan?count=20").then(function (p) {
+      var blocked = (p.blocked_reasons || []).length;
+      var willSend = Math.min(p.ready.length + p.need_lookup.length, p.remaining);
+
+      var warn = "";
+      if (blocked) {
+        warn = "<div class='banner banner-warn'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.9'><path d='M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z'/></svg>" +
+          "<div class='spacer'>" + p.blocked_reasons.map(ML.esc).join("<br>") +
+          "</div><a class='btn btn-sm' href='/settings'>Settings</a></div>";
+      } else if (!p.has_ever_sent) {
+        warn = "<div class='banner banner-warn'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.9'><path d='M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z'/></svg>" +
+          "<div class='spacer'><strong>You haven't sent anything yet.</strong> " +
+          "Read the email below — that is exactly what goes out, with your details " +
+          "already in it. Once you're happy, this runs on its own.</div></div>";
+      }
+
+      var body =
+        warn +
+        "<div class='grid grid-3' style='margin-bottom:14px'>" +
+          "<div class='stat'><div class='stat-label'>Will write to</div>" +
+            "<div class='stat-value'>" + willSend + "</div>" +
+            "<div class='stat-sub'>best prospects not yet approached</div></div>" +
+          "<div class='stat'><div class='stat-label'>Already have an email</div>" +
+            "<div class='stat-value'>" + p.ready.length + "</div>" +
+            "<div class='stat-sub'>" + p.need_lookup.length + " need looking up first</div></div>" +
+          "<div class='stat'><div class='stat-label'>Today's cap</div>" +
+            "<div class='stat-value'>" + p.remaining + "</div>" +
+            "<div class='stat-sub'>left of " + p.daily_cap + "</div></div>" +
+        "</div>" +
+        (p.sample
+          ? "<h3 style='margin:0 0 8px'>What " + ML.esc(p.sample.name) + " receives</h3>" +
+            "<div class='preview-mail'><div class='subject'>" + ML.esc(p.sample.subject) +
+            "</div><div class='body'>" + ML.esc(p.sample.body) + "</div></div>" +
+            "<p class='muted small'>Each one is written for that business by name. " +
+            "Your postal address and an opt-out are added when it sends.</p>"
+          : "<p class='muted'>No prospects left to approach. Run a scan, or lower the " +
+            "score cut-off.</p>") +
+        "<p class='muted small'>Anyone who replies is taken out of the sequence " +
+        "automatically. Anyone who asks to stop is never contacted again.</p>";
+
+      var panel = ML.drawer.open(
+        "<div class='card'><div class='card-head'><h2>Find and email prospects</h2>" +
+          "<div class='spacer'></div><button class='icon-btn' data-close>&times;</button></div>" +
+        "<div class='card-body'>" + body + "</div>" +
+        "<div class='drawer-foot'>" +
+          "<button class='btn btn-primary' id='ap-go'" +
+            (blocked || !willSend ? " disabled" : "") + ">Send to " + willSend + "</button>" +
+          "<button class='btn' id='ap-dry'" + (!willSend ? " disabled" : "") +
+            ">Practice run, send nothing</button>" +
+          "<div style='flex:1'></div><button class='btn btn-ghost' data-close>Cancel</button>" +
+        "</div></div>", { centered: true });
+
+      function go(dry) {
+        ML.drawer.close();
+        ML.jobs.start("/api/jobs/autopilot", { count: 20, dry_run: dry }, function (job) {
+          load();
+          var r = job.result || {};
+          if ((r.skipped || []).length) {
+            ML.drawer.open(
+              "<div class='card'><div class='card-head'><h2>" + ML.esc(r.summary) + "</h2>" +
+                "<div class='spacer'></div><button class='icon-btn' data-close>&times;</button></div>" +
+              "<div class='card-body'><p class='muted small'>" + r.skipped.length +
+                " were left out — mostly no contact details published anywhere. " +
+                "Those need a phone call; the script is on the Outreach page.</p>" +
+                "<ul class='small muted' style='padding-left:18px'>" +
+                r.skipped.map(function (s) {
+                  return "<li>" + ML.esc(s.name) + " — " + ML.esc(s.reason) + "</li>";
+                }).join("") + "</ul></div></div>", { centered: true });
+          }
+        });
+      }
+
+      var goBtn = panel.querySelector("#ap-go");
+      var dryBtn = panel.querySelector("#ap-dry");
+      if (goBtn) goBtn.onclick = function () { go(false); };
+      if (dryBtn) dryBtn.onclick = function () { go(true); };
+    }).catch(function (e) { ML.toast(e.message, "bad"); });
+  }
+
+  var autoBtn = document.getElementById("btn-auto");
+  if (autoBtn) autoBtn.onclick = autopilot;
+
   ["btn-scan", "btn-scan-empty"].forEach(function (id) {
     var el = document.getElementById(id);
     if (el) el.onclick = startScan;

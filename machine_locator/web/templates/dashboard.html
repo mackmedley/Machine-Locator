@@ -2,7 +2,11 @@
 {% block title %}Dashboard — Machine Locator{% endblock %}
 {% block heading %}Dashboard{% endblock %}
 {% block topbar_actions %}
-  <button class="btn btn-primary" id="btn-scan">
+  <button class="btn btn-primary" id="btn-auto">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+    Find and email prospects
+  </button>
+  <button class="btn" id="btn-scan">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
     Find prospects
   </button>
@@ -26,6 +30,10 @@
       It takes a couple of minutes.
     </p>
     <button class="btn btn-primary btn-lg" id="btn-scan-empty">Scan {{ city }} now</button>
+    <p class="muted small" style="margin:14px 0 0">
+      Once it has scanned, <strong>Find and email prospects</strong> does the rest
+      in one go — picks the best ones, finds their contact details, and writes to them.
+    </p>
   </div>
 </div>
 {% endif %}

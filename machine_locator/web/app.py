@@ -293,6 +293,58 @@ def create_app(settings: Optional[Settings] = None, public: bool = False) -> Fla
 
         return _start("send-queue", job, "Sending outreach...")
 
+    @app.route("/api/autopilot/plan")
+    def api_autopilot_plan() -> Any:
+        """What one run would do, so it can be seen before it happens."""
+        from ..autopilot import plan
+
+        count = max(1, min(200, request.args.get("count", default=20, type=int)))
+        min_score = request.args.get("min_score", default=65.0, type=float)
+        with db() as database:
+            identity, smtp = identity_and_smtp(database)
+            result = plan(settings, database, identity, smtp,
+                          count=count, min_score=min_score)
+            return jsonify({
+                "ready": result.ready,
+                "need_lookup": result.need_lookup,
+                "total": result.total_candidates,
+                "daily_cap": result.daily_cap,
+                "sent_today": result.sent_today,
+                "remaining": result.remaining,
+                "blocked_reasons": result.blocked_reasons,
+                "has_ever_sent": result.has_ever_sent,
+                "sample": result.sample,
+            })
+
+    @app.route("/api/jobs/autopilot", methods=["POST"])
+    def api_job_autopilot() -> Any:
+        """Pick the best prospects, find their details, write and send."""
+        payload = request.get_json(silent=True) or {}
+        count = max(1, min(200, int(payload.get("count") or 20)))
+        min_score = float(payload.get("min_score") or 65.0)
+        dry_run = bool(payload.get("dry_run"))
+
+        def job(database: Database, report) -> Dict[str, Any]:
+            from ..autopilot import run
+
+            identity, smtp = identity_and_smtp(database)
+            result = run(settings, database, identity, smtp, count=count,
+                         min_score=min_score, dry_run=dry_run,
+                         progress=lambda m: report(m))
+            if result.blocked_reasons:
+                raise RuntimeError(" ".join(result.blocked_reasons))
+            return {
+                "summary": result.summary,
+                "picked": result.picked,
+                "contacts_found": result.contacts_found,
+                "enrolled": result.enrolled,
+                "sent": result.sent,
+                "failed": result.failed,
+                "skipped": result.skipped[:40],
+            }
+
+        return _start("autopilot", job, "Choosing prospects...")
+
     @app.route("/api/jobs/find-contacts", methods=["POST"])
     def api_job_find_contacts() -> Any:
         """Read each prospect's own website for the contact details it lists."""

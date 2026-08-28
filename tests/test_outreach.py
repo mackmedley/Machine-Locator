@@ -367,3 +367,31 @@ def test_templates_list_leads_with_the_email_sequence(db):
     keys = [t["key"] for t in db.list_templates()]
     assert keys[:3] == ["intro_email", "followup_1", "followup_2"]
     assert set(keys[3:]) == {"call_script", "walk_in_script"}
+
+
+def test_an_untouched_builtin_is_refreshed_to_the_current_wording(db):
+    """A database made before a copy change must not keep sending the old
+    pitch forever -- that is how a deliberately removed line survives."""
+    install_builtins(db)
+    stored = db.get_template("intro_email")
+    db.upsert_template({**stored, "body": "stale wording from an old version",
+                        "builtin": True})
+
+    assert install_builtins(db) == 1
+    assert db.get_template("intro_email")["body"] != "stale wording from an old version"
+    assert "no cost to you" in db.get_template("intro_email")["body"]
+
+
+def test_refreshing_never_touches_a_template_you_edited(db):
+    install_builtins(db)
+    stored = db.get_template("intro_email")
+    # Saving from the Templates page clears the builtin flag.
+    db.upsert_template({**stored, "body": "my own words", "builtin": False})
+
+    install_builtins(db)
+    assert db.get_template("intro_email")["body"] == "my own words"
+
+
+def test_refreshing_is_a_no_op_when_already_current(db):
+    install_builtins(db)
+    assert install_builtins(db) == 0
